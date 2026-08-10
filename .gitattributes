@@ -1,0 +1,21 @@
+# Unity YAML-based files — not real source code, exclude from language stats
+*.cs text
+*.cginc text
+*.shader text
+
+*.mat linguist-generated
+*.anim linguist-generated
+*.unity linguist-generated
+*.asset linguist-generated
+*.prefab linguist-generated
+*.meta linguist-generated
+*.controller linguist-generated
+*.physicsMaterial2D linguist-generated
+*.physicMaterial linguist-generated
+*.asmdef linguist-generated
+
+# Unity YAML files use LF line endings — keep consistent across platforms
+*.unity text eol=lf
+*.asset text eol=lf
+*.prefab text eol=lf
+*.meta text eol=lf
