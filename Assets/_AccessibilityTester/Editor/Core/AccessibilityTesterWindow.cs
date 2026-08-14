@@ -1,11 +1,15 @@
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.Rendering.Universal;
+using AccessibilityTester.Editor.ShaderController;
 
 namespace AccessibilityTester.Editor.Core
 {
     public class AccessibilityTesterWindow : EditorWindow
     {
         private CoreManager _coreManager;
+        private ShaderControllerModule _shaderControllerModule;
+        private UniversalRendererData _rendererData;
 
         [MenuItem("Window/Accessibility UI Tester")]
         public static void ShowWindow()
@@ -17,10 +21,12 @@ namespace AccessibilityTester.Editor.Core
         private void OnEnable()
         {
             _coreManager = new CoreManager();
+            _shaderControllerModule = new ShaderControllerModule(_coreManager, _rendererData);
         }
 
         private void OnDisable()
         {
+            _shaderControllerModule?.Dispose();
             _coreManager?.Dispose();
         }
 
@@ -29,7 +35,17 @@ namespace AccessibilityTester.Editor.Core
             GUILayout.Label("Accessibility UI Tester", EditorStyles.boldLabel);
             EditorGUILayout.Space();
 
-            if (GUILayout.Button("Toggle CVD Simulation"))
+            EditorGUI.BeginChangeCheck();
+            _rendererData = (UniversalRendererData)EditorGUILayout.ObjectField(
+                "URP Renderer Data", _rendererData, typeof(UniversalRendererData), false);
+            if (EditorGUI.EndChangeCheck())
+            {
+                _shaderControllerModule.SetRendererData(_rendererData);
+            }
+
+            EditorGUILayout.Space();
+
+            if (GUILayout.Button($"Toggle CVD Simulation ({_shaderControllerModule.CurrentStateLabel})"))
                 _coreManager.RequestToggleCvdSimulation();
 
             if (GUILayout.Button("Run Contrast Scan"))

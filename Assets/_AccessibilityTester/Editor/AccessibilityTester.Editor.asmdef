@@ -2,7 +2,8 @@
     "name": "NewAssembly",
     "rootNamespace": "",
     "references": [
-        "GUID:5f85f6acf0d1d7c4a9b5fdb794bd800c"
+        "GUID:5f85f6acf0d1d7c4a9b5fdb794bd800c",
+        "GUID:15fc0a57446b3144c949da3e2b9737a9"
     ],
     "includePlatforms": [
         "Editor"
