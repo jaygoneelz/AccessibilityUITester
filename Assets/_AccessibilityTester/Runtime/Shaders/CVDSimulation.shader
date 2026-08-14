@@ -13,6 +13,7 @@ Shader "Hidden/AccessibilityTester/CVDSimulation"
             #pragma vertex Vert
             #pragma fragment Frag
 
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "Packages/com.unity.render-pipelines.core/Runtime/Utilities/Blit.hlsl"
 
             float4x4 _CVDMatrix;
