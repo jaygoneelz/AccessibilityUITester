@@ -10,11 +10,13 @@ namespace AccessibilityTester.Editor.Core
     public class CoreManager : IDisposable
     {
         public event Action OnToggleCvdSimulationRequested;
+        public event Action OnToggleBlurRequested;
         public event Action OnContrastScanRequested;
         public event Action OnGenerateReportRequested;
         public event Action<float> OnFontScaleRequested;
 
         public void RequestToggleCvdSimulation() => OnToggleCvdSimulationRequested?.Invoke();
+        public void RequestToggleBlur() => OnToggleBlurRequested?.Invoke();
         public void RequestContrastScan() => OnContrastScanRequested?.Invoke();
         public void RequestGenerateReport() => OnGenerateReportRequested?.Invoke();
         public void RequestFontScale(float factor) => OnFontScaleRequested?.Invoke(factor);
@@ -22,6 +24,7 @@ namespace AccessibilityTester.Editor.Core
         public void Dispose()
         {
             OnToggleCvdSimulationRequested = null;
+            OnToggleBlurRequested = null;
             OnContrastScanRequested = null;
             OnGenerateReportRequested = null;
             OnFontScaleRequested = null;

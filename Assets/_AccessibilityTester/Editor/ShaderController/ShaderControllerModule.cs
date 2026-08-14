@@ -20,7 +20,8 @@ namespace AccessibilityTester.Editor.ShaderController
         {
             _coreManager = coreManager;
             _rendererData = rendererData;
-            _coreManager.OnToggleCvdSimulationRequested += HandleToggle;
+            _coreManager.OnToggleCvdSimulationRequested += HandleToggleCvd;
+            _coreManager.OnToggleBlurRequested += HandleToggleBlur;
             FindFeature();
         }
 
@@ -45,7 +46,7 @@ namespace AccessibilityTester.Editor.ShaderController
             }
         }
 
-        private void HandleToggle()
+        private void HandleToggleCvd()
         {
             if (_cvdFeature == null)
             {
@@ -61,6 +62,23 @@ namespace AccessibilityTester.Editor.ShaderController
                 _ => CVDRendererFeature.CVDType.None
             };
 
+            MarkDirtyAndRepaint();
+        }
+
+        private void HandleToggleBlur()
+        {
+            if (_cvdFeature == null)
+            {
+                Debug.LogWarning("[AccessibilityTester] No CVDRendererFeature found on the assigned Renderer Data asset. Drag the correct Renderer asset into the tool window first.");
+                return;
+            }
+
+            _cvdFeature.blurEnabled = !_cvdFeature.blurEnabled;
+            MarkDirtyAndRepaint();
+        }
+
+        private void MarkDirtyAndRepaint()
+        {
             EditorUtility.SetDirty(_cvdFeature);
             EditorUtility.SetDirty(_rendererData);
             AssetDatabase.SaveAssets();
@@ -70,9 +88,12 @@ namespace AccessibilityTester.Editor.ShaderController
         public string CurrentStateLabel =>
             _cvdFeature != null ? _cvdFeature.simulationType.ToString() : "No feature assigned";
 
+        public bool BlurEnabled => _cvdFeature != null && _cvdFeature.blurEnabled;
+
         public void Dispose()
         {
-            _coreManager.OnToggleCvdSimulationRequested -= HandleToggle;
+            _coreManager.OnToggleCvdSimulationRequested -= HandleToggleCvd;
+            _coreManager.OnToggleBlurRequested -= HandleToggleBlur;
         }
     }
 }

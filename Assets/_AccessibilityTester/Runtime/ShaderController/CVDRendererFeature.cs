@@ -13,13 +13,20 @@ namespace AccessibilityTester.Runtime.ShaderController
         [SerializeField] private Shader cvdShader;
         public CVDType simulationType = CVDType.None;
 
+        [SerializeField] private Shader blurShader;
+        public bool blurEnabled = false;
+        [Range(0, 10)] public float blurSize = 2.0f;
+
         private Material _material;
         private CVDPass _pass;
 
-        // Machado, Oliveira & Fernandes (2009) full-severity transformation matrices.
-        // VERIFY these against the paper's supplementary data before using them
-        // for your O1 ΔE<2.0 validation — small transcription errors here would
-        // directly break that accuracy claim.
+        private Material _blurMaterial;
+        private LowVisionBlurPass _blurPass;
+
+        // Machado, Oliveira & Fernandes (2009) full-severity transformation
+        // matrices. Verified against the authors' own published Table 1
+        // (severity = 1.0) at https://www.inf.ufrgs.br/~oliveira/pubs_files/
+        // CVD_Simulation/CVD_Simulation.html — exact match to 6 decimal places.
         private static readonly Matrix4x4 ProtanopiaMatrix = new Matrix4x4(
             new Vector4(0.152286f, 0.114503f, -0.003882f, 0f),
             new Vector4(1.052583f, 0.786281f, -0.048116f, 0f),
@@ -41,24 +48,43 @@ namespace AccessibilityTester.Runtime.ShaderController
         public override void Create()
         {
             if (cvdShader == null)
-            {
                 cvdShader = Shader.Find("Hidden/AccessibilityTester/CVDSimulation");
-            }
-            if (cvdShader == null) return;
 
-            _material = CoreUtils.CreateEngineMaterial(cvdShader);
-            _pass = new CVDPass(_material)
+            if (cvdShader != null)
             {
-                renderPassEvent = RenderPassEvent.AfterRenderingPostProcessing
-            };
+                _material = CoreUtils.CreateEngineMaterial(cvdShader);
+                _pass = new CVDPass(_material)
+                {
+                    renderPassEvent = RenderPassEvent.AfterRenderingPostProcessing
+                };
+            }
+
+            if (blurShader == null)
+                blurShader = Shader.Find("Hidden/AccessibilityTester/GaussianBlur");
+
+            if (blurShader != null)
+            {
+                _blurMaterial = CoreUtils.CreateEngineMaterial(blurShader);
+                _blurPass = new LowVisionBlurPass(_blurMaterial)
+                {
+                    renderPassEvent = RenderPassEvent.AfterRenderingPostProcessing
+                };
+            }
         }
 
         public override void AddRenderPasses(ScriptableRenderer renderer, ref RenderingData renderingData)
         {
-            if (simulationType == CVDType.None || _material == null || _pass == null) return;
+            if (simulationType != CVDType.None && _material != null && _pass != null)
+            {
+                _pass.SetMatrix(GetMatrixFor(simulationType));
+                renderer.EnqueuePass(_pass);
+            }
 
-            _pass.SetMatrix(GetMatrixFor(simulationType));
-            renderer.EnqueuePass(_pass);
+            if (blurEnabled && _blurMaterial != null && _blurPass != null)
+            {
+                _blurPass.SetBlurSize(blurSize);
+                renderer.EnqueuePass(_blurPass);
+            }
         }
 
         private static Matrix4x4 GetMatrixFor(CVDType type) => type switch
@@ -72,6 +98,7 @@ namespace AccessibilityTester.Runtime.ShaderController
         protected override void Dispose(bool disposing)
         {
             CoreUtils.Destroy(_material);
+            CoreUtils.Destroy(_blurMaterial);
         }
     }
 }

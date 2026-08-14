@@ -68,6 +68,9 @@ MonoBehaviour:
   m_Active: 1
   cvdShader: {fileID: 4800000, guid: 2eca454866074a940bfc3211bdf61eab, type: 3}
   simulationType: 0
+  blurShader: {fileID: 4800000, guid: 6e74309b4b041cd4084cb23664b7987f, type: 3}
+  blurEnabled: 0
+  blurSize: 2
 --- !u!114 &7833122117494664109
 MonoBehaviour:
   m_ObjectHideFlags: 0
