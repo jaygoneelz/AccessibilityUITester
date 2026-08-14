@@ -23,6 +23,7 @@ Shader "Hidden/AccessibilityTester/CVDSimulation"
                 float2 uv = input.texcoord;
                 float3 color = SAMPLE_TEXTURE2D_X(_BlitTexture, sampler_LinearClamp, uv).rgb;
                 float3 simulated = mul((float3x3)_CVDMatrix, color);
+                simulated = saturate(simulated);
                 return float4(simulated, 1.0);
             }
             ENDHLSL
