@@ -8,10 +8,11 @@ namespace AccessibilityTester.Runtime.ContrastMeter
 {
     /// <summary>
     /// On left-click, raycasts the UI at the click position via the active
-    /// EventSystem, finds the clicked Graphic and its nearest ancestor
-    /// Graphic (background), computes the WCAG contrast ratio between them,
-    /// and displays a pass/fail badge at the click position. Requires an
-    /// active EventSystem + GraphicRaycaster in the scene; Play Mode only.
+    /// EventSystem, finds the clicked Graphic and its background colour
+    /// (nearest ancestor Graphic, falling back to the camera's background
+    /// colour if no ancestor Graphic exists), computes the WCAG contrast
+    /// ratio, and displays a pass/fail badge at the click position.
+    /// Requires an active EventSystem + GraphicRaycaster; Play Mode only.
     /// </summary>
     public class ContrastMeterRuntime : MonoBehaviour
     {
@@ -55,26 +56,40 @@ namespace AccessibilityTester.Runtime.ContrastMeter
                 return;
             }
 
-            Graphic background = FindAncestorGraphic(foreground.transform);
-            if (background == null)
+            Graphic backgroundGraphic = FindAncestorGraphic(foreground.transform);
+            Color backgroundColor;
+            string backgroundLabel;
+
+            if (backgroundGraphic != null)
             {
-                _hasResult = false;
-                return;
+                backgroundColor = backgroundGraphic.color;
+                backgroundLabel = backgroundGraphic.gameObject.name;
+            }
+            else
+            {
+                // No coloured ancestor in the UI hierarchy — fall back to
+                // the main camera's background colour as the effective
+                // backdrop behind this element.
+                Camera cam = Camera.main;
+                backgroundColor = cam != null ? cam.backgroundColor : Color.black;
+                backgroundLabel = cam != null ? "Camera Background" : "Unknown (no Main Camera)";
             }
 
-            float ratio = WcagContrastUtility.ContrastRatio(foreground.color, background.color);
+            float ratio = WcagContrastUtility.ContrastRatio(foreground.color, backgroundColor);
 
             _hasResult = true;
             _lastRatio = ratio;
             _lastPass = WcagContrastUtility.PassesNormalText(ratio);
             _lastScreenPosition = screenPosition;
             _foregroundName = foreground.gameObject.name;
-            _backgroundName = background.gameObject.name;
+            _backgroundName = backgroundLabel;
         }
 
         /// <summary>
         /// Walks up the hierarchy from the clicked element (excluding
         /// itself) for the nearest ancestor Graphic, treated as background.
+        /// Returns null if none exists (e.g. element sits directly on
+        /// Canvas with no coloured panel behind it).
         /// </summary>
         private static Graphic FindAncestorGraphic(Transform start)
         {
