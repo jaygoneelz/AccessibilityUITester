@@ -67,9 +67,6 @@ namespace AccessibilityTester.Runtime.ContrastMeter
             }
             else
             {
-                // No coloured ancestor in the UI hierarchy — fall back to
-                // the main camera's background colour as the effective
-                // backdrop behind this element.
                 Camera cam = Camera.main;
                 backgroundColor = cam != null ? cam.backgroundColor : Color.black;
                 backgroundLabel = cam != null ? "Camera Background" : "Unknown (no Main Camera)";
@@ -107,25 +104,44 @@ namespace AccessibilityTester.Runtime.ContrastMeter
         {
             if (!_hasResult) return;
 
+            const float badgeWidth = 420f;
+            const float badgeHeight = 90f;
+            const int titleFontSize = 28;
+            const int subtitleFontSize = 18;
+
             string status = _lastPass ? "PASS" : "FAIL";
-            Color badgeColor = _lastPass ? new Color(0.2f, 0.7f, 0.2f) : new Color(0.8f, 0.2f, 0.2f);
-            string label = $"{status}  {_lastRatio:F2}:1\n{_foregroundName} on {_backgroundName}";
+            Color badgeColor = _lastPass ? new Color(0.15f, 0.55f, 0.15f) : new Color(0.75f, 0.15f, 0.15f);
 
             float guiY = Screen.height - _lastScreenPosition.y;
-            Rect rect = new Rect(_lastScreenPosition.x + 12, guiY - 12, 220, 40);
+            Rect rect = new Rect(_lastScreenPosition.x + 16, guiY - 16, badgeWidth, badgeHeight);
+
+            // Keep the badge fully on-screen if the click is near an edge.
+            if (rect.xMax > Screen.width) rect.x = Screen.width - badgeWidth - 8;
+            if (rect.yMax > Screen.height) rect.y = Screen.height - badgeHeight - 8;
 
             Color previousColor = GUI.color;
             GUI.color = badgeColor;
             GUI.Box(rect, string.Empty);
             GUI.color = previousColor;
 
-            GUIStyle labelStyle = new GUIStyle(GUI.skin.label)
+            GUIStyle titleStyle = new GUIStyle(GUI.skin.label)
             {
-                fontSize = 12,
-                alignment = TextAnchor.MiddleLeft,
+                fontSize = titleFontSize,
+                fontStyle = FontStyle.Bold,
+                alignment = TextAnchor.UpperLeft,
                 normal = { textColor = Color.white }
             };
-            GUI.Label(rect, label, labelStyle);
+            Rect titleRect = new Rect(rect.x + 14, rect.y + 8, rect.width - 28, 36);
+            GUI.Label(titleRect, $"{status}  {_lastRatio:F2}:1", titleStyle);
+
+            GUIStyle subtitleStyle = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = subtitleFontSize,
+                alignment = TextAnchor.UpperLeft,
+                normal = { textColor = new Color(1f, 1f, 1f, 0.9f) }
+            };
+            Rect subtitleRect = new Rect(rect.x + 14, rect.y + 48, rect.width - 28, 32);
+            GUI.Label(subtitleRect, $"{_foregroundName} on {_backgroundName}", subtitleStyle);
         }
     }
 }
