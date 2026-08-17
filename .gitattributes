@@ -19,3 +19,10 @@
 *.asset text eol=lf
 *.prefab text eol=lf
 *.meta text eol=lf
+
+# TextMesh Pro is a Unity-bundled third-party package, not authored code —
+# exclude from language statistics
+Assets/TextMesh Pro/** linguist-vendored
+
+# UI Toolkit default assets are also Unity-bundled, not authored code
+Assets/UI Toolkit/** linguist-vendored
