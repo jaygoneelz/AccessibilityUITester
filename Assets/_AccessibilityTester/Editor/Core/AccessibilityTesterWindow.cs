@@ -19,7 +19,7 @@ namespace AccessibilityTester.Editor.Core
         public static void ShowWindow()
         {
             var window = GetWindow<AccessibilityTesterWindow>("Accessibility UI Tester");
-            window.minSize = new Vector2(320, 260);
+            window.minSize = new Vector2(320, 300);
         }
 
         private void OnEnable()
@@ -90,6 +90,10 @@ namespace AccessibilityTester.Editor.Core
 
             if (GUILayout.Button("Generate Report"))
                 _coreManager.RequestGenerateReport();
+
+            EditorGUILayout.Space();
+            GUILayout.Label("Diagnostics", EditorStyles.boldLabel);
+            FpsLogger.Enabled = EditorGUILayout.ToggleLeft("Log fps to Console/CSV during Play Mode", FpsLogger.Enabled);
         }
     }
 }

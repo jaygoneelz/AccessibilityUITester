@@ -8,12 +8,20 @@ namespace AccessibilityTester.Editor.Core
     [InitializeOnLoad]
     public static class FpsLogger
     {
+        private const string EnabledPrefKey = "AccessibilityTester.FpsLoggerEnabled";
+
         private static readonly List<float> FrameTimesMs = new List<float>();
         private static double _lastTime;
         private static bool _wasPlaying;
 
         private const int TrimFrames = 30;
         private const float Target60FpsMs = 1000f / 60f;
+
+        public static bool Enabled
+        {
+            get => EditorPrefs.GetBool(EnabledPrefKey, false);
+            set => EditorPrefs.SetBool(EnabledPrefKey, value);
+        }
 
         static FpsLogger()
         {
@@ -23,6 +31,12 @@ namespace AccessibilityTester.Editor.Core
         private static void OnUpdate()
         {
             bool isPlaying = Application.isPlaying;
+
+            if (!Enabled)
+            {
+                _wasPlaying = isPlaying;
+                return;
+            }
 
             if (isPlaying && !_wasPlaying)
             {
@@ -64,7 +78,7 @@ namespace AccessibilityTester.Editor.Core
                 if (t > Target60FpsMs)
                 {
                     framesOver60fps++;
-                    if (offenderIndices.Count < 20) offenderIndices.Add(i); // cap listing to first 20
+                    if (offenderIndices.Count < 20) offenderIndices.Add(i);
                 }
             }
 
