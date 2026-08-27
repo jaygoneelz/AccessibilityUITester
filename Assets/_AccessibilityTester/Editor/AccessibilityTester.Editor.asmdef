@@ -1,5 +1,5 @@
 {
-    "name": "NewAssembly",
+    "name": "AccessibilityTester.Editor",
     "rootNamespace": "",
     "references": [
         "GUID:5f85f6acf0d1d7c4a9b5fdb794bd800c",
