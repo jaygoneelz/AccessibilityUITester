@@ -2,6 +2,7 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.Rendering.Universal;
 using AccessibilityTester.Editor.ShaderController;
+using AccessibilityTester.Editor.ContrastMeter;
 
 namespace AccessibilityTester.Editor.Core
 {
@@ -11,13 +12,14 @@ namespace AccessibilityTester.Editor.Core
 
         private CoreManager _coreManager;
         private ShaderControllerModule _shaderControllerModule;
+        private ContrastMeterModule _contrastMeterModule;
         private UniversalRendererData _rendererData;
 
         [MenuItem("Window/Accessibility UI Tester")]
         public static void ShowWindow()
         {
             var window = GetWindow<AccessibilityTesterWindow>("Accessibility UI Tester");
-            window.minSize = new Vector2(320, 240);
+            window.minSize = new Vector2(320, 260);
         }
 
         private void OnEnable()
@@ -25,10 +27,12 @@ namespace AccessibilityTester.Editor.Core
             _coreManager = new CoreManager();
             LoadRendererDataFromPrefs();
             _shaderControllerModule = new ShaderControllerModule(_coreManager, _rendererData);
+            _contrastMeterModule = new ContrastMeterModule(_coreManager);
         }
 
         private void OnDisable()
         {
+            _contrastMeterModule?.Dispose();
             _shaderControllerModule?.Dispose();
             _coreManager?.Dispose();
         }
@@ -72,6 +76,12 @@ namespace AccessibilityTester.Editor.Core
 
             if (GUILayout.Button($"Toggle Low Vision Blur ({(_shaderControllerModule.BlurEnabled ? "On" : "Off")})"))
                 _coreManager.RequestToggleBlur();
+
+            EditorGUILayout.Space();
+
+            if (GUILayout.Button($"Toggle Contrast Meter ({(_contrastMeterModule.IsActive ? "On" : "Off")})"))
+                _coreManager.RequestToggleContrastMeter();
+            EditorGUILayout.HelpBox("Contrast Meter requires Play Mode.", MessageType.Info);
 
             EditorGUILayout.Space();
 
