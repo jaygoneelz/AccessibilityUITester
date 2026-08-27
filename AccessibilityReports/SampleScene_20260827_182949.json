@@ -1,0 +1,34 @@
+{
+    "sceneName": "SampleScene",
+    "scanTimestampUtc": "2026-08-27T17:29:49.8771741Z",
+    "minContrastRatioUsed": 4.5,
+    "minFontSizePointUsed": 12.0,
+    "totalElementsScanned": 2,
+    "totalFailures": 1,
+    "elements": [
+        {
+            "elementName": "Text (TMP)",
+            "hierarchyPath": "Canvas/Text (TMP)",
+            "sceneName": "SampleScene",
+            "contrastRatio": 1.0,
+            "contrastPass": false,
+            "fontSizePoint": 36.0,
+            "fontSizePass": true,
+            "foregroundColorHex": "#FFFFFF",
+            "backgroundColorHex": "#FFFFFF",
+            "backgroundSourceLabel": "None (default white assumed)"
+        },
+        {
+            "elementName": "Text (TMP)",
+            "hierarchyPath": "Canvas/Button/Text (TMP)",
+            "sceneName": "SampleScene",
+            "contrastRatio": 12.821133613586426,
+            "contrastPass": true,
+            "fontSizePoint": 24.0,
+            "fontSizePass": true,
+            "foregroundColorHex": "#323232",
+            "backgroundColorHex": "#FFFFFF",
+            "backgroundSourceLabel": "Button"
+        }
+    ]
+}

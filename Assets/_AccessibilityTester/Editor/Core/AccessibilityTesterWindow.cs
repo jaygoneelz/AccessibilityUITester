@@ -3,35 +3,43 @@ using UnityEngine;
 using UnityEngine.Rendering.Universal;
 using AccessibilityTester.Editor.ShaderController;
 using AccessibilityTester.Editor.ContrastMeter;
+using AccessibilityTester.Editor.ReportWriter;
+using AccessibilityTester.Runtime.ReportWriter;
 
 namespace AccessibilityTester.Editor.Core
 {
     public class AccessibilityTesterWindow : EditorWindow
     {
         private const string RendererDataPrefKey = "AccessibilityTester.RendererDataPath";
+        private const string ThresholdsPrefKey = "AccessibilityTester.ThresholdsPath";
 
         private CoreManager _coreManager;
         private ShaderControllerModule _shaderControllerModule;
         private ContrastMeterModule _contrastMeterModule;
+        private ReportWriterModule _reportWriterModule;
         private UniversalRendererData _rendererData;
+        private AccessibilityThresholds _thresholds;
 
         [MenuItem("Window/Accessibility UI Tester")]
         public static void ShowWindow()
         {
             var window = GetWindow<AccessibilityTesterWindow>("Accessibility UI Tester");
-            window.minSize = new Vector2(320, 300);
+            window.minSize = new Vector2(320, 380);
         }
 
         private void OnEnable()
         {
             _coreManager = new CoreManager();
             LoadRendererDataFromPrefs();
+            LoadThresholdsFromPrefs();
             _shaderControllerModule = new ShaderControllerModule(_coreManager, _rendererData);
             _contrastMeterModule = new ContrastMeterModule(_coreManager);
+            _reportWriterModule = new ReportWriterModule(_coreManager, _thresholds);
         }
 
         private void OnDisable()
         {
+            _reportWriterModule?.Dispose();
             _contrastMeterModule?.Dispose();
             _shaderControllerModule?.Dispose();
             _coreManager?.Dispose();
@@ -41,18 +49,26 @@ namespace AccessibilityTester.Editor.Core
         {
             string path = EditorPrefs.GetString(RendererDataPrefKey, string.Empty);
             if (!string.IsNullOrEmpty(path))
-            {
                 _rendererData = AssetDatabase.LoadAssetAtPath<UniversalRendererData>(path);
-            }
         }
 
         private void SaveRendererDataToPrefs()
         {
             if (_rendererData != null)
-            {
-                string path = AssetDatabase.GetAssetPath(_rendererData);
-                EditorPrefs.SetString(RendererDataPrefKey, path);
-            }
+                EditorPrefs.SetString(RendererDataPrefKey, AssetDatabase.GetAssetPath(_rendererData));
+        }
+
+        private void LoadThresholdsFromPrefs()
+        {
+            string path = EditorPrefs.GetString(ThresholdsPrefKey, string.Empty);
+            if (!string.IsNullOrEmpty(path))
+                _thresholds = AssetDatabase.LoadAssetAtPath<AccessibilityThresholds>(path);
+        }
+
+        private void SaveThresholdsToPrefs()
+        {
+            if (_thresholds != null)
+                EditorPrefs.SetString(ThresholdsPrefKey, AssetDatabase.GetAssetPath(_thresholds));
         }
 
         private void OnGUI()
@@ -84,12 +100,22 @@ namespace AccessibilityTester.Editor.Core
             EditorGUILayout.HelpBox("Contrast Meter requires Play Mode.", MessageType.Info);
 
             EditorGUILayout.Space();
+            GUILayout.Label("Report Writer", EditorStyles.boldLabel);
 
-            if (GUILayout.Button("Run Contrast Scan"))
-                _coreManager.RequestContrastScan();
+            EditorGUI.BeginChangeCheck();
+            _thresholds = (AccessibilityThresholds)EditorGUILayout.ObjectField(
+                "Thresholds", _thresholds, typeof(AccessibilityThresholds), false);
+            if (EditorGUI.EndChangeCheck())
+            {
+                _reportWriterModule.SetThresholds(_thresholds);
+                SaveThresholdsToPrefs();
+            }
 
             if (GUILayout.Button("Generate Report"))
                 _coreManager.RequestGenerateReport();
+
+            if (!string.IsNullOrEmpty(_reportWriterModule.LastReportPath))
+                EditorGUILayout.HelpBox($"Last report: {_reportWriterModule.LastReportPath}", MessageType.None);
 
             EditorGUILayout.Space();
             GUILayout.Label("Diagnostics", EditorStyles.boldLabel);
