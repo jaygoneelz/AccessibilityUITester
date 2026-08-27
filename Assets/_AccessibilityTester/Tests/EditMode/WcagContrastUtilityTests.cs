@@ -4,6 +4,10 @@ using AccessibilityTester.Runtime.ContrastMeter;
 
 namespace AccessibilityTester.Tests.EditMode
 {
+    /// <summary>
+    /// Unit tests for WcagContrastUtility's contrast-ratio math and
+    /// pass/fail thresholds.
+    /// </summary>
     public class WcagContrastUtilityTests
     {
         private const float Tolerance = 0.01f;

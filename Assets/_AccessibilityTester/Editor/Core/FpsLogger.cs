@@ -5,12 +5,17 @@ using UnityEngine;
 
 namespace AccessibilityTester.Editor.Core
 {
+    /// <summary>
+    /// Editor-only frame-time logger. When enabled, records frame deltas
+    /// during Play Mode, trims warm-up/cool-down frames, and writes a
+    /// summary to the Console plus a CSV on exiting Play Mode.
+    /// </summary>
     [InitializeOnLoad]
     public static class FpsLogger
     {
         private const string EnabledPrefKey = "AccessibilityTester.FpsLoggerEnabled";
 
-        private static readonly List<float> FrameTimesMs = new List<float>();
+        private static readonly List<float> _frameTimesMs = new List<float>();
         private static double _lastTime;
         private static bool _wasPlaying;
 
@@ -40,7 +45,7 @@ namespace AccessibilityTester.Editor.Core
 
             if (isPlaying && !_wasPlaying)
             {
-                FrameTimesMs.Clear();
+                _frameTimesMs.Clear();
                 _lastTime = EditorApplication.timeSinceStartup;
             }
             else if (!isPlaying && _wasPlaying)
@@ -52,7 +57,7 @@ namespace AccessibilityTester.Editor.Core
                 double now = EditorApplication.timeSinceStartup;
                 float deltaMs = (float)((now - _lastTime) * 1000.0);
                 _lastTime = now;
-                FrameTimesMs.Add(deltaMs);
+                _frameTimesMs.Add(deltaMs);
             }
 
             _wasPlaying = isPlaying;
@@ -60,10 +65,10 @@ namespace AccessibilityTester.Editor.Core
 
         private static void WriteResults()
         {
-            if (FrameTimesMs.Count < 10) return;
+            if (_frameTimesMs.Count < 10) return;
 
-            if (FrameTimesMs.Count <= TrimFrames * 2) return;
-            var trimmed = FrameTimesMs.GetRange(TrimFrames, FrameTimesMs.Count - TrimFrames * 2);
+            if (_frameTimesMs.Count <= TrimFrames * 2) return;
+            var trimmed = _frameTimesMs.GetRange(TrimFrames, _frameTimesMs.Count - TrimFrames * 2);
 
             float sum = 0f, min = float.MaxValue, max = 0f;
             int framesOver60fps = 0;

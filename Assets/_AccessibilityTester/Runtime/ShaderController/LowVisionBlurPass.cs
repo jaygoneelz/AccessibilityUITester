@@ -6,6 +6,11 @@ using UnityEngine.Rendering.Universal;
 
 namespace AccessibilityTester.Runtime.ShaderController
 {
+    /// <summary>
+    /// URP ScriptableRenderPass that applies a two-pass (horizontal then
+    /// vertical) Gaussian blur to the active color target, simulating low
+    /// vision.
+    /// </summary>
     internal class LowVisionBlurPass : ScriptableRenderPass
     {
         private readonly Material _material;

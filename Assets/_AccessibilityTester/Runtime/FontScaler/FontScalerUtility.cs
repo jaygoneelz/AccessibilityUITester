@@ -14,6 +14,7 @@ namespace AccessibilityTester.Runtime.FontScaler
     /// </summary>
     public static class FontScalerUtility
     {
+        // Cached pre-scale state for a single text element, so ApplyScale can be reverted.
         private class OriginalState
         {
             public float fontSize;

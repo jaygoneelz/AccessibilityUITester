@@ -4,6 +4,10 @@ using AccessibilityTester.Runtime.ShaderController;
 
 namespace AccessibilityTester.Tests.EditMode
 {
+    /// <summary>
+    /// Verifies the CVD simulation matrices against the X-Rite ColorChecker
+    /// Classic reference patches by computing CIE76 ΔE in CPU-side code.
+    /// </summary>
     public class CVDMatrixAccuracyTests
     {
         private const double DeltaEThreshold = 2.0;

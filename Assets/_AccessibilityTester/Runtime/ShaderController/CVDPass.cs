@@ -6,6 +6,10 @@ using UnityEngine.Rendering.Universal;
 
 namespace AccessibilityTester.Runtime.ShaderController
 {
+    /// <summary>
+    /// URP ScriptableRenderPass that blits the active color target through
+    /// a colour-vision-deficiency simulation material.
+    /// </summary>
     internal class CVDPass : ScriptableRenderPass
     {
         private readonly Material _material;

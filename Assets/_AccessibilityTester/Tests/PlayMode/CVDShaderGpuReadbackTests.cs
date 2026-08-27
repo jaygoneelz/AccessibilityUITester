@@ -5,6 +5,11 @@ using UnityEngine.TestTools;
 
 namespace AccessibilityTester.Tests.PlayMode
 {
+    /// <summary>
+    /// Verifies the CVD simulation shader's GPU output against the CPU-side
+    /// matrix math by blitting each ColorChecker patch and reading back the
+    /// rendered pixel.
+    /// </summary>
     public class CVDShaderGpuReadbackTests
     {
         private const double DeltaEThreshold = 2.0;

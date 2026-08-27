@@ -9,6 +9,13 @@ using AccessibilityTester.Runtime.ReportWriter;
 
 namespace AccessibilityTester.Editor.Core
 {
+    /// <summary>
+    /// Top-level EditorWindow for the Accessibility UI Tester. Owns the
+    /// CoreManager event bus and composes all four module bridges (Shader
+    /// Controller, Contrast Meter, Report Writer, Font Scaler) into a
+    /// single UI. Persists the assigned URP Renderer Data and Accessibility
+    /// Thresholds assets across editor sessions via EditorPrefs.
+    /// </summary>
     public class AccessibilityTesterWindow : EditorWindow
     {
         private const string RendererDataPrefKey = "AccessibilityTester.RendererDataPath";

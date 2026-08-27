@@ -3,17 +3,25 @@ using UnityEngine.Rendering;
 using UnityEngine.Rendering.RenderGraphModule;
 using UnityEngine.Rendering.RenderGraphModule.Util;
 using UnityEngine.Rendering.Universal;
+using UnityEngine.Serialization;
 
 namespace AccessibilityTester.Runtime.ShaderController
 {
+    /// <summary>
+    /// URP ScriptableRendererFeature that owns the CVD simulation and low
+    /// vision blur passes, and exposes the toggles/parameters the Editor
+    /// module bridge (ShaderControllerModule) reads and writes.
+    /// </summary>
     public class CVDRendererFeature : ScriptableRendererFeature
     {
         public enum CVDType { None, Protanopia, Deuteranopia, Tritanopia }
 
-        [SerializeField] private Shader cvdShader;
+        [FormerlySerializedAs("cvdShader")]
+        [SerializeField] private Shader _cvdShader;
         public CVDType simulationType = CVDType.None;
 
-        [SerializeField] private Shader blurShader;
+        [FormerlySerializedAs("blurShader")]
+        [SerializeField] private Shader _blurShader;
         public bool blurEnabled = false;
         [Range(0, 10)] public float blurSize = 2.0f;
 
@@ -47,24 +55,24 @@ namespace AccessibilityTester.Runtime.ShaderController
 
         public override void Create()
         {
-            if (cvdShader == null)
-                cvdShader = Shader.Find("Hidden/AccessibilityTester/CVDSimulation");
+            if (_cvdShader == null)
+                _cvdShader = Shader.Find("Hidden/AccessibilityTester/CVDSimulation");
 
-            if (cvdShader != null)
+            if (_cvdShader != null)
             {
-                _material = CoreUtils.CreateEngineMaterial(cvdShader);
+                _material = CoreUtils.CreateEngineMaterial(_cvdShader);
                 _pass = new CVDPass(_material)
                 {
                     renderPassEvent = RenderPassEvent.AfterRenderingPostProcessing
                 };
             }
 
-            if (blurShader == null)
-                blurShader = Shader.Find("Hidden/AccessibilityTester/GaussianBlur");
+            if (_blurShader == null)
+                _blurShader = Shader.Find("Hidden/AccessibilityTester/GaussianBlur");
 
-            if (blurShader != null)
+            if (_blurShader != null)
             {
-                _blurMaterial = CoreUtils.CreateEngineMaterial(blurShader);
+                _blurMaterial = CoreUtils.CreateEngineMaterial(_blurShader);
                 _blurPass = new LowVisionBlurPass(_blurMaterial)
                 {
                     renderPassEvent = RenderPassEvent.AfterRenderingPostProcessing

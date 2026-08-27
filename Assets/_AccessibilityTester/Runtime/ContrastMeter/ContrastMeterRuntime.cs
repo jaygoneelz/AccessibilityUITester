@@ -94,8 +94,7 @@ namespace AccessibilityTester.Runtime.ContrastMeter
 
             Color fgColor = foreground.color;
             Color effectiveForeground = Color.Lerp(effectiveBackground, fgColor, fgColor.a);
-            
-        
+
             float ratio = WcagContrastUtility.ContrastRatio(effectiveForeground, effectiveBackground);
 
             _hasResult = true;
