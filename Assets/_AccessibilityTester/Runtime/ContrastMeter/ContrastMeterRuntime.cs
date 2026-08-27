@@ -8,10 +8,12 @@ namespace AccessibilityTester.Runtime.ContrastMeter
 {
     /// <summary>
     /// On left-click, raycasts the UI at the click position via the active
-    /// EventSystem, finds the clicked Graphic and its background colour
-    /// (nearest ancestor Graphic, falling back to the camera's background
-    /// colour if no ancestor Graphic exists), computes the WCAG contrast
-    /// ratio, and displays a pass/fail badge at the click position.
+    /// EventSystem and computes an effective foreground/background colour
+    /// by alpha-compositing every semi-transparent layer in the raycast
+    /// stack (front-to-back) down to the camera's background colour as an
+    /// opaque base. This handles overlapping/semi-transparent UI layers
+    /// (see proposal Risk #2) rather than reading a single layer's colour
+    /// in isolation. Displays a pass/fail badge at the click position.
     /// Requires an active EventSystem + GraphicRaycaster; Play Mode only.
     /// </summary>
     public class ContrastMeterRuntime : MonoBehaviour
@@ -21,7 +23,7 @@ namespace AccessibilityTester.Runtime.ContrastMeter
         private bool _lastPass;
         private Vector2 _lastScreenPosition;
         private string _foregroundName;
-        private string _backgroundName;
+        private string _backgroundLabel;
 
         private void Update()
         {
@@ -43,11 +45,17 @@ namespace AccessibilityTester.Runtime.ContrastMeter
             var results = new List<RaycastResult>();
             EventSystem.current.RaycastAll(pointerData, results);
 
+            int foregroundIndex = -1;
             Graphic foreground = null;
-            foreach (var result in results)
+            for (int i = 0; i < results.Count; i++)
             {
-                foreground = result.gameObject.GetComponent<Graphic>();
-                if (foreground != null) break;
+                var graphic = results[i].gameObject.GetComponent<Graphic>();
+                if (graphic != null)
+                {
+                    foreground = graphic;
+                    foregroundIndex = i;
+                    break;
+                }
             }
 
             if (foreground == null)
@@ -56,37 +64,55 @@ namespace AccessibilityTester.Runtime.ContrastMeter
                 return;
             }
 
-            Graphic backgroundGraphic = FindAncestorGraphic(foreground.transform);
-            Color backgroundColor;
-            string backgroundLabel;
-
-            if (backgroundGraphic != null)
+            // Layers behind the clicked element, still in front-to-back order.
+            var behindLayers = new List<Graphic>();
+            for (int i = foregroundIndex + 1; i < results.Count; i++)
             {
-                backgroundColor = backgroundGraphic.color;
-                backgroundLabel = backgroundGraphic.gameObject.name;
-            }
-            else
-            {
-                Camera cam = Camera.main;
-                backgroundColor = cam != null ? cam.backgroundColor : Color.black;
-                backgroundLabel = cam != null ? "Camera Background" : "Unknown (no Main Camera)";
+                var graphic = results[i].gameObject.GetComponent<Graphic>();
+                if (graphic != null) behindLayers.Add(graphic);
             }
 
-            float ratio = WcagContrastUtility.ContrastRatio(foreground.color, backgroundColor);
+            // Ancestor panels with Raycast Target disabled won't appear in
+            // the raycast stack but still visually sit behind the element.
+            Graphic ancestor = FindAncestorGraphic(foreground.transform);
+            if (ancestor != null && !behindLayers.Contains(ancestor))
+            {
+                behindLayers.Add(ancestor);
+            }
+
+            Camera cam = Camera.main;
+            Color opaqueBase = cam != null ? cam.backgroundColor : Color.black;
+
+            // Composite back-to-front (reverse of the front-to-back list)
+            // so each layer blends over everything already behind it.
+            Color effectiveBackground = opaqueBase;
+            for (int i = behindLayers.Count - 1; i >= 0; i--)
+            {
+                Color layerColor = behindLayers[i].color;
+                effectiveBackground = Color.Lerp(effectiveBackground, layerColor, layerColor.a);
+            }
+
+            Color fgColor = foreground.color;
+            Color effectiveForeground = Color.Lerp(effectiveBackground, fgColor, fgColor.a);
+            
+        
+            float ratio = WcagContrastUtility.ContrastRatio(effectiveForeground, effectiveBackground);
 
             _hasResult = true;
             _lastRatio = ratio;
             _lastPass = WcagContrastUtility.PassesNormalText(ratio);
             _lastScreenPosition = screenPosition;
             _foregroundName = foreground.gameObject.name;
-            _backgroundName = backgroundLabel;
+            _backgroundLabel = behindLayers.Count > 0
+                ? $"{behindLayers.Count} composited layer(s)"
+                : (cam != null ? "Camera Background" : "Unknown (no Main Camera)");
         }
 
         /// <summary>
         /// Walks up the hierarchy from the clicked element (excluding
-        /// itself) for the nearest ancestor Graphic, treated as background.
-        /// Returns null if none exists (e.g. element sits directly on
-        /// Canvas with no coloured panel behind it).
+        /// itself) for the nearest ancestor Graphic. Used as a fallback
+        /// background layer when no ancestor appears in the raycast stack
+        /// (e.g. Raycast Target disabled on the panel).
         /// </summary>
         private static Graphic FindAncestorGraphic(Transform start)
         {
@@ -115,7 +141,6 @@ namespace AccessibilityTester.Runtime.ContrastMeter
             float guiY = Screen.height - _lastScreenPosition.y;
             Rect rect = new Rect(_lastScreenPosition.x + 16, guiY - 16, badgeWidth, badgeHeight);
 
-            // Keep the badge fully on-screen if the click is near an edge.
             if (rect.xMax > Screen.width) rect.x = Screen.width - badgeWidth - 8;
             if (rect.yMax > Screen.height) rect.y = Screen.height - badgeHeight - 8;
 
@@ -141,7 +166,7 @@ namespace AccessibilityTester.Runtime.ContrastMeter
                 normal = { textColor = new Color(1f, 1f, 1f, 0.9f) }
             };
             Rect subtitleRect = new Rect(rect.x + 14, rect.y + 48, rect.width - 28, 32);
-            GUI.Label(subtitleRect, $"{_foregroundName} on {_backgroundName}", subtitleStyle);
+            GUI.Label(subtitleRect, $"{_foregroundName} on {_backgroundLabel}", subtitleStyle);
         }
     }
 }
