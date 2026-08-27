@@ -10,10 +10,14 @@ namespace AccessibilityTester.Editor.ReportWriter
     /// specified number of procedurally generated TextMeshProUGUI
     /// elements, for O3 scan-time stress testing per proposal Phase 4.
     /// Not part of the shipped tool — development/testing utility only.
+    /// Kept under a separate top-level menu path ("Tools") rather than
+    /// nested under "Window/Accessibility UI Tester" to avoid colliding
+    /// with that menu item, which must remain a direct window-opening
+    /// command rather than becoming a submenu container.
     /// </summary>
     public static class StressTestSceneGenerator
     {
-        [MenuItem("Window/Accessibility UI Tester/Generate 1000-Element Stress Test")]
+        [MenuItem("Tools/Accessibility Tester/Generate 1000-Element Stress Test")]
         public static void GenerateStressTestElements()
         {
             Canvas canvas = Object.FindFirstObjectByType<Canvas>();
@@ -45,7 +49,7 @@ namespace AccessibilityTester.Editor.ReportWriter
             Debug.Log($"[AccessibilityTester] Generated {count} stress-test elements under '{container.name}'.");
         }
 
-        [MenuItem("Window/Accessibility UI Tester/Remove Stress Test Elements")]
+        [MenuItem("Tools/Accessibility Tester/Remove Stress Test Elements")]
         public static void RemoveStressTestElements()
         {
             GameObject container = GameObject.Find("StressTestElements");

@@ -4,6 +4,7 @@ using UnityEngine.Rendering.Universal;
 using AccessibilityTester.Editor.ShaderController;
 using AccessibilityTester.Editor.ContrastMeter;
 using AccessibilityTester.Editor.ReportWriter;
+using AccessibilityTester.Editor.FontScaler;
 using AccessibilityTester.Runtime.ReportWriter;
 
 namespace AccessibilityTester.Editor.Core
@@ -17,14 +18,16 @@ namespace AccessibilityTester.Editor.Core
         private ShaderControllerModule _shaderControllerModule;
         private ContrastMeterModule _contrastMeterModule;
         private ReportWriterModule _reportWriterModule;
+        private FontScalerModule _fontScalerModule;
         private UniversalRendererData _rendererData;
         private AccessibilityThresholds _thresholds;
+        private float _fontScaleFactor = 2.0f;
 
         [MenuItem("Window/Accessibility UI Tester")]
         public static void ShowWindow()
         {
             var window = GetWindow<AccessibilityTesterWindow>("Accessibility UI Tester");
-            window.minSize = new Vector2(320, 380);
+            window.minSize = new Vector2(320, 460);
         }
 
         private void OnEnable()
@@ -35,10 +38,12 @@ namespace AccessibilityTester.Editor.Core
             _shaderControllerModule = new ShaderControllerModule(_coreManager, _rendererData);
             _contrastMeterModule = new ContrastMeterModule(_coreManager);
             _reportWriterModule = new ReportWriterModule(_coreManager, _thresholds);
+            _fontScalerModule = new FontScalerModule(_coreManager);
         }
 
         private void OnDisable()
         {
+            _fontScalerModule?.Dispose();
             _reportWriterModule?.Dispose();
             _contrastMeterModule?.Dispose();
             _shaderControllerModule?.Dispose();
@@ -116,6 +121,17 @@ namespace AccessibilityTester.Editor.Core
 
             if (!string.IsNullOrEmpty(_reportWriterModule.LastReportPath))
                 EditorGUILayout.HelpBox($"Last report: {_reportWriterModule.LastReportPath}", MessageType.None);
+
+            EditorGUILayout.Space();
+            GUILayout.Label("Font Scaler", EditorStyles.boldLabel);
+
+            _fontScaleFactor = EditorGUILayout.Slider("Scale Factor", _fontScaleFactor, 0.5f, 3f);
+
+            if (GUILayout.Button($"Apply Font Scale ({(_fontScalerModule.IsScaled ? "Currently Scaled" : "Original")})"))
+                _coreManager.RequestFontScale(_fontScaleFactor);
+
+            if (GUILayout.Button("Revert Font Scale"))
+                _fontScalerModule.Revert();
 
             EditorGUILayout.Space();
             GUILayout.Label("Diagnostics", EditorStyles.boldLabel);
