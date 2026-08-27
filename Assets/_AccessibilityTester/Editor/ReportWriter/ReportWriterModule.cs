@@ -1,8 +1,10 @@
+using System.Diagnostics;
 using System.IO;
 using UnityEditor;
 using UnityEngine;
 using AccessibilityTester.Runtime.ReportWriter;
 using AccessibilityTester.Editor.Core;
+using Debug = UnityEngine.Debug;
 
 namespace AccessibilityTester.Editor.ReportWriter
 {
@@ -39,7 +41,10 @@ namespace AccessibilityTester.Editor.ReportWriter
                 return;
             }
 
+            var stopwatch = Stopwatch.StartNew();
             SceneReport report = SceneReportScanner.Scan(_thresholds);
+            stopwatch.Stop();
+
             string json = JsonUtility.ToJson(report, prettyPrint: true);
 
             string directory = Path.Combine(Application.dataPath, "..", OutputFolder);
@@ -52,7 +57,7 @@ namespace AccessibilityTester.Editor.ReportWriter
             _lastReportPath = fullPath;
 
             Debug.Log($"[AccessibilityTester] Report generated: {report.totalElementsScanned} elements scanned, " +
-                      $"{report.totalFailures} failure(s). Saved to {fullPath}");
+                      $"{report.totalFailures} failure(s), scan took {stopwatch.ElapsedMilliseconds}ms. Saved to {fullPath}");
         }
 
         public void Dispose()
