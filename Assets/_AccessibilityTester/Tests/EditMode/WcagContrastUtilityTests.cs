@@ -40,11 +40,6 @@ namespace AccessibilityTester.Tests.EditMode
         [Test]
         public void ContrastRatio_MatchesClosedFormSolution_ForGrayOnWhite()
         {
-            // Derives the linear gray luminance required for exactly 4.5:1
-            // against white from the contrast formula itself, then inverts
-            // the gamma curve to get the sRGB channel value. This checks
-            // internal consistency of ContrastRatio() without depending on
-            // any external reference colour value.
             const float targetRatio = 4.5f;
             const float whiteLuminance = 1f;
 
@@ -65,6 +60,44 @@ namespace AccessibilityTester.Tests.EditMode
             Assert.Less(WcagContrastUtility.LargeTextMinRatio, WcagContrastUtility.NormalTextMinRatio);
             Assert.Less(WcagContrastUtility.NormalTextMinRatio, WcagContrastUtility.EnhancedNormalTextMinRatio);
             Assert.AreEqual(WcagContrastUtility.EnhancedLargeTextMinRatio, WcagContrastUtility.NormalTextMinRatio);
+        }
+
+        /// <summary>
+        /// Logs computed ratios for a fixed set of hex pairs, for manual
+        /// cross-checking against WebAIM's contrast checker
+        /// (webaim.org/resources/contrastchecker). Does not assert against
+        /// hardcoded "expected" values, since those would need the same
+        /// external verification this test exists to provide.
+        /// </summary>
+        [Test]
+        public void LogRatios_ForManualWebAimCrossCheck()
+        {
+            LogPair("#000000", "#FFFFFF");
+            LogPair("#767676", "#FFFFFF");
+            LogPair("#0000FF", "#FFFFFF");
+            LogPair("#FF0000", "#000000");
+            LogPair("#595959", "#FFFFFF");
+            LogPair("#1A1A1A", "#FFFFFF");
+            LogPair("#3B3B3B", "#ADADAD");
+            LogPair("#4A90D9", "#FFFFFF");
+        }
+
+        private static void LogPair(string fgHex, string bgHex)
+        {
+            Color fg = HexToColor(fgHex);
+            Color bg = HexToColor(bgHex);
+            float ratio = WcagContrastUtility.ContrastRatio(fg, bg);
+            bool normalPass = WcagContrastUtility.PassesNormalText(ratio);
+            bool largePass = WcagContrastUtility.PassesLargeText(ratio);
+
+            Debug.Log($"[G18CrossCheck] {fgHex} on {bgHex} -> {ratio:F2}:1 " +
+                      $"(Normal AA: {(normalPass ? "PASS" : "FAIL")}, Large AA: {(largePass ? "PASS" : "FAIL")})");
+        }
+
+        private static Color HexToColor(string hex)
+        {
+            ColorUtility.TryParseHtmlString(hex, out Color color);
+            return color;
         }
     }
 }
