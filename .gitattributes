@@ -26,3 +26,6 @@ Assets/TextMesh Pro/** linguist-vendored
 
 # UI Toolkit default assets are also Unity-bundled, not authored code
 Assets/UI Toolkit/** linguist-vendored
+
+# Third-party package assets — not authored by the student, exclude from language stats
+Assets/TextMesh Pro/** linguist-vendored
