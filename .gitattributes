@@ -1,4 +1,4 @@
-# Unity YAML-based files — not real source code, exclude from language stats
+# Unity YAML-based files - not real source code, exclude from language stats
 *.cs text
 *.cginc text
 *.shader text
@@ -14,18 +14,12 @@
 *.physicMaterial linguist-generated
 *.asmdef linguist-generated
 
-# Unity YAML files use LF line endings — keep consistent across platforms
+# Unity YAML files use LF line endings - keep consistent across platforms
 *.unity text eol=lf
 *.asset text eol=lf
 *.prefab text eol=lf
 *.meta text eol=lf
 
-# TextMesh Pro is a Unity-bundled third-party package, not authored code —
-# exclude from language statistics
-Assets/TextMesh\ Pro/** linguist-vendored
-
-# UI Toolkit default assets are also Unity-bundled, not authored code
-Assets/UI\ Toolkit/** linguist-vendored
-
-# Third-party package assets — not authored by the student, exclude from language stats
-Assets/TextMesh\ Pro/** linguist-vendored
+# Third-party packages bundled by Unity, not authored code - exclude from language stats
+Assets/TextMesh?Pro/** linguist-vendored
+Assets/UI?Toolkit/** linguist-vendored
