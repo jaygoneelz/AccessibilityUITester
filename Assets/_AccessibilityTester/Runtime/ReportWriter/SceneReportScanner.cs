@@ -14,6 +14,10 @@ namespace AccessibilityTester.Runtime.ReportWriter
     /// since there is no camera-background concept outside Play Mode),
     /// checks font size, and produces a SceneReport. Runs in Edit Mode —
     /// no EventSystem/raycast dependency, unlike Contrast Meter.
+    /// Scans inactive GameObjects too (e.g. UI screens toggled on/off by
+    /// game logic, such as pause/start/end screens sharing one Canvas),
+    /// so a single scan covers all UI states rather than only whichever
+    /// screen happens to be active when the scan runs.
     /// </summary>
     public static class SceneReportScanner
     {
@@ -29,7 +33,7 @@ namespace AccessibilityTester.Runtime.ReportWriter
 
             var elements = new List<ElementReport>();
 
-            Canvas[] canvases = UnityEngine.Object.FindObjectsByType<Canvas>(FindObjectsSortMode.None);
+            Canvas[] canvases = UnityEngine.Object.FindObjectsByType<Canvas>(FindObjectsInactive.Include, FindObjectsSortMode.None);
             foreach (var canvas in canvases)
             {
                 ScanCanvas(canvas, thresholds, elements);
@@ -44,13 +48,13 @@ namespace AccessibilityTester.Runtime.ReportWriter
 
         private static void ScanCanvas(Canvas canvas, AccessibilityThresholds thresholds, List<ElementReport> results)
         {
-            Text[] legacyTexts = canvas.GetComponentsInChildren<Text>(includeInactive: false);
+            Text[] legacyTexts = canvas.GetComponentsInChildren<Text>(includeInactive: true);
             foreach (var text in legacyTexts)
             {
                 results.Add(BuildReport(text.gameObject, text.color, text.fontSize, thresholds));
             }
 
-            TextMeshProUGUI[] tmpTexts = canvas.GetComponentsInChildren<TextMeshProUGUI>(includeInactive: false);
+            TextMeshProUGUI[] tmpTexts = canvas.GetComponentsInChildren<TextMeshProUGUI>(includeInactive: true);
             foreach (var tmp in tmpTexts)
             {
                 results.Add(BuildReport(tmp.gameObject, tmp.color, tmp.fontSize, thresholds));
@@ -65,10 +69,6 @@ namespace AccessibilityTester.Runtime.ReportWriter
 
             float ratio = WcagContrastUtility.ContrastRatio(fgColor, bgColor);
 
-            // Pass/fail is checked against the ScriptableObject's configurable
-            // threshold, not the hardcoded WCAG constant in WcagContrastUtility,
-            // since thresholds must be adjustable without recompilation
-            // (proposal Phase 4 requirement).
             bool contrastPass = ratio >= thresholds.minContrastRatio;
             bool fontPass = fontSize >= thresholds.minFontSizePoint;
 
