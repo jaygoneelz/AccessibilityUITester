@@ -1,0 +1,33 @@
+[33m0b9a3a3[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m Clean up code
+[33m1185182[m Add AccessibilityReports/ to gitignore — generated test output, not source
+[33m80e8a46[m Code cleanup
+[33md9f15fe[m Add FontScalerUtility (global TMP scaling, revertible via cached original state) and FontScalerModule bridge — verified true-negative (0 overlaps, unscaled elements) and true-positive (2 overlaps correctly detected and magenta-highlighted after 2x scale, then correctly reverted)
+[33m03e2aeb[m Add stress-test scene generator and scan timing — 1000-element scan completed in 9ms (proposal O3 budget: 8000ms), verified via 1002 elements scanned (including pre-existing UI) and 536 realistic pass/fail results. O3 performance criterion satisfied.
+[33mfb7fc98[m Wire Report Writer into CoreManager/EditorWindow — verified full scene scan, JSON output correctly structured, correctly matches Contrast Meter's earlier manual reading for Button text (12.82:1). Documented limitation: white-background fallback for elements with no ancestor Graphic in Edit Mode (no live camera render available, unlike Contrast Meter's Play Mode sampling).
+[33m313d2c8[m Add AccessibilityThresholds ScriptableObject, ElementReport/SceneReport data model, and SceneReportScanner — Edit Mode static analysis of Canvas hierarchy, contrast + font size checks against configurable thresholds
+[33m86d50ff[m Verify and remove debug logging for alpha-compositing — hand-checked blend math confirmed exact match (green 00FF2E at a=0.502 over opaque pink B700FF), fixed test scene hierarchy order (sibling order determines uGUI render/raycast order, semi-transparent panel needed to be later sibling than opaque layer beneath it)
+[33m173638a[m Add G18/WebAIM cross-check test logging 8 hex pairs — independently verified 8/8 exact parity with WebAIM contrast checker, including borderline cases near 4.5:1 and 3:1 thresholds. O2 contrast-accuracy criterion satisfied.
+[33md4a9f9d[m Add FpsLogger enable/disable checkbox to EditorWindow (EditorPrefs-backed) — stops fps logging noise during unrelated Play Mode testing
+[33m7adccef[m Wire Contrast Meter into CoreManager/EditorWindow via ContrastMeterModule bridge — fix stray manually-attached test GameObject and toggle logic that always force-enabled on first click
+[33m6488901[m Rewrite .gitattributes with wildcard pattern to avoid space-escaping issue for TextMesh Pro / UI Toolkit paths
+[33m9dba446[m Fix .gitattributes syntax — escape spaces in TextMesh Pro / UI Toolkit folder paths
+[33md00aaec[m Mark TextMesh Pro package folder as linguist-vendored to exclude third-party shader/HLSL files from language statistics
+[33m9b69cd6[m Increase Contrast Meter badge size and font (220x40/12pt -> 420x90/28pt+18pt) for readability at QHD resolution, add edge-clamping to keep badge on-screen
+[33m5dfb841[m Add camera-background fallback to ContrastMeterRuntime for UI elements with no ancestor Graphic — verified working on Button (ancestor path), Image and Text (fallback path), pass/fail split behaves as expected
+[33m2fc50f2[m Add ContrastMeterRuntime — click-capture via new Input System, EventSystem raycast, nearest-ancestor background detection, OnGUI pass/fail badge using verified WcagContrastUtility
+[33m444bec6[m Mark TextMesh Pro and UI Toolkit bundled package files as linguist-vendored — exclude third-party Unity package code from repo language statistics
+[33ma12964d[m Add WCAG 2.1 contrast utility with EditMode tests — verified formula against W3C source (0.04045 threshold used deliberately over literal 0.03928, documented rationale), gray-boundary test now closed-form self-verifying rather than citing an unconfirmed reference value
+[33md47a598[m Fix Canvas Plane Distance (100 -> 5) to resolve UI occlusion by 3D scene geometry — Button/Image/Text now correctly render through URP pipeline and CVD/blur passes, confirming full-scene simulation works as intended
+[33m0a17bf4[m Baseline (CVD off) fps run: 47,839 frames, avg 419fps — confirms CVD pass adds no measurable per-frame cost. O1 fully validated: ΔE and fps criteria both satisfied.
+[33ma078c0a[m Expand SampleScene with additional 3D objects and UI canvas for fps profiling and future Contrast Meter testing
+[33mb57b72f[m Fix shader output clamping (saturate) to match CPU reference — GPU-readback ΔE validation now passes with 0.0000 max ΔE across all 24 ColorChecker patches for all 3 CVD types (O1 colour-accuracy criterion satisfied)
+[33m6d54d98[m Add EditMode regression test for ΔE calculation pipeline (CPU self-consistency check, 0.0000 as expected) — GPU readback validation still needed for O1 evidence
+[33m3af46e7[m Wire Toggle CVD Simulation button through CoreManager to CVDRendererFeature — cycles None/Protanopia/Deuteranopia/Tritanopia, verified working
+[33m78d5d09[m Fix shader includes (universal package Core.hlsl + core package Blit.hlsl) — CVD simulation working, protanopia shift confirmed visually on test sphere
+[33mf5e9c9b[m Add CVD simulation shader and RendererFeature with correct URP Runtime asmdef references — compiles clean, not yet wired to pipeline
+[33mabd2773[m Remove unused Unity TutorialInfo folder (fixes Wolfram Language misdetection)
+[33m1704f8f[m Add .gitattributes to fix Unity YAML files being misclassified as Wolfram Language
+[33m67ceb78[m Add AccessibilityTesterWindow and CoreManager skeleton — Phase 1 complete
+[33m99b3ed6[m Add Editor and Runtime assembly definitions with editor-platform restriction and reference link
+[33m0ee7d79[m Add project folder structure for editor tool, demo scenes, and stress test
+[33m6cc6e42[m Initial Unity 6 LTS URP project setup

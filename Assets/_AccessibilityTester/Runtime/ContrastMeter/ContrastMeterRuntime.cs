@@ -1,8 +1,10 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
-using UnityEngine.InputSystem;
 using UnityEngine.UI;
+#if ENABLE_INPUT_SYSTEM
+using UnityEngine.InputSystem;
+#endif
 
 namespace AccessibilityTester.Runtime.ContrastMeter
 {
@@ -15,6 +17,12 @@ namespace AccessibilityTester.Runtime.ContrastMeter
     /// (see proposal Risk #2) rather than reading a single layer's colour
     /// in isolation. Displays a pass/fail badge at the click position.
     /// Requires an active EventSystem + GraphicRaycaster; Play Mode only.
+    /// Mouse input is read via the new Input System when the host project
+    /// has it enabled (ENABLE_INPUT_SYSTEM), falling back to the legacy
+    /// Input class otherwise — allows this module to run unmodified in
+    /// third-party projects regardless of their Active Input Handling
+    /// setting (discovered when testing against Red Runner, which uses
+    /// the legacy Input Manager only).
     /// </summary>
     public class ContrastMeterRuntime : MonoBehaviour
     {
@@ -27,10 +35,30 @@ namespace AccessibilityTester.Runtime.ContrastMeter
 
         private void Update()
         {
-            if (Mouse.current == null) return;
-            if (!Mouse.current.leftButton.wasPressedThisFrame) return;
+            if (!WasLeftClickThisFrame(out Vector2 screenPosition)) return;
 
-            EvaluateContrastAt(Mouse.current.position.ReadValue());
+            EvaluateContrastAt(screenPosition);
+        }
+
+        private static bool WasLeftClickThisFrame(out Vector2 screenPosition)
+        {
+#if ENABLE_INPUT_SYSTEM
+            if (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame)
+            {
+                screenPosition = Mouse.current.position.ReadValue();
+                return true;
+            }
+            screenPosition = default;
+            return false;
+#else
+            if (Input.GetMouseButtonDown(0))
+            {
+                screenPosition = Input.mousePosition;
+                return true;
+            }
+            screenPosition = default;
+            return false;
+#endif
         }
 
         private void EvaluateContrastAt(Vector2 screenPosition)
@@ -64,7 +92,6 @@ namespace AccessibilityTester.Runtime.ContrastMeter
                 return;
             }
 
-            // Layers behind the clicked element, still in front-to-back order.
             var behindLayers = new List<Graphic>();
             for (int i = foregroundIndex + 1; i < results.Count; i++)
             {
@@ -72,8 +99,6 @@ namespace AccessibilityTester.Runtime.ContrastMeter
                 if (graphic != null) behindLayers.Add(graphic);
             }
 
-            // Ancestor panels with Raycast Target disabled won't appear in
-            // the raycast stack but still visually sit behind the element.
             Graphic ancestor = FindAncestorGraphic(foreground.transform);
             if (ancestor != null && !behindLayers.Contains(ancestor))
             {
@@ -83,8 +108,6 @@ namespace AccessibilityTester.Runtime.ContrastMeter
             Camera cam = Camera.main;
             Color opaqueBase = cam != null ? cam.backgroundColor : Color.black;
 
-            // Composite back-to-front (reverse of the front-to-back list)
-            // so each layer blends over everything already behind it.
             Color effectiveBackground = opaqueBase;
             for (int i = behindLayers.Count - 1; i >= 0; i--)
             {
@@ -107,12 +130,6 @@ namespace AccessibilityTester.Runtime.ContrastMeter
                 : (cam != null ? "Camera Background" : "Unknown (no Main Camera)");
         }
 
-        /// <summary>
-        /// Walks up the hierarchy from the clicked element (excluding
-        /// itself) for the nearest ancestor Graphic. Used as a fallback
-        /// background layer when no ancestor appears in the raycast stack
-        /// (e.g. Raycast Target disabled on the panel).
-        /// </summary>
         private static Graphic FindAncestorGraphic(Transform start)
         {
             Transform current = start.parent;
