@@ -1,32 +1,42 @@
 using UnityEditor;
 using UnityEngine;
-using UnityEngine.Rendering.Universal;
-using AccessibilityTester.Editor.ShaderController;
 using AccessibilityTester.Editor.ContrastMeter;
 using AccessibilityTester.Editor.ReportWriter;
 using AccessibilityTester.Editor.FontScaler;
 using AccessibilityTester.Runtime.ReportWriter;
+#if ACCESSIBILITY_TESTER_URP
+using UnityEngine.Rendering.Universal;
+using AccessibilityTester.Editor.ShaderController;
+#endif
 
 namespace AccessibilityTester.Editor.Core
 {
     /// <summary>
     /// Top-level EditorWindow for the Accessibility UI Tester. Owns the
-    /// CoreManager event bus and composes all four module bridges (Shader
-    /// Controller, Contrast Meter, Report Writer, Font Scaler) into a
-    /// single UI. Persists the assigned URP Renderer Data and Accessibility
+    /// CoreManager event bus and composes module bridges into a single UI.
+    /// The Shader Controller section (URP-dependent) is compiled in only
+    /// when the ACCESSIBILITY_TESTER_URP scripting define is set, allowing
+    /// this window to run unmodified in projects that use the legacy
+    /// Built-in Render Pipeline and have no URP package installed (e.g.
+    /// Red Runner, evaluated without Shader Controller support).
+    /// Persists the assigned URP Renderer Data and Accessibility
     /// Thresholds assets across editor sessions via EditorPrefs.
     /// </summary>
     public class AccessibilityTesterWindow : EditorWindow
     {
+#if ACCESSIBILITY_TESTER_URP
         private const string RendererDataPrefKey = "AccessibilityTester.RendererDataPath";
+#endif
         private const string ThresholdsPrefKey = "AccessibilityTester.ThresholdsPath";
 
         private CoreManager _coreManager;
+#if ACCESSIBILITY_TESTER_URP
         private ShaderControllerModule _shaderControllerModule;
+        private UniversalRendererData _rendererData;
+#endif
         private ContrastMeterModule _contrastMeterModule;
         private ReportWriterModule _reportWriterModule;
         private FontScalerModule _fontScalerModule;
-        private UniversalRendererData _rendererData;
         private AccessibilityThresholds _thresholds;
         private float _fontScaleFactor = 2.0f;
 
@@ -34,15 +44,18 @@ namespace AccessibilityTester.Editor.Core
         public static void ShowWindow()
         {
             var window = GetWindow<AccessibilityTesterWindow>("Accessibility UI Tester");
-            window.minSize = new Vector2(320, 460);
+            window.minSize = new Vector2(320, 380);
         }
 
         private void OnEnable()
         {
             _coreManager = new CoreManager();
-            LoadRendererDataFromPrefs();
             LoadThresholdsFromPrefs();
+
+#if ACCESSIBILITY_TESTER_URP
+            LoadRendererDataFromPrefs();
             _shaderControllerModule = new ShaderControllerModule(_coreManager, _rendererData);
+#endif
             _contrastMeterModule = new ContrastMeterModule(_coreManager);
             _reportWriterModule = new ReportWriterModule(_coreManager, _thresholds);
             _fontScalerModule = new FontScalerModule(_coreManager);
@@ -53,10 +66,13 @@ namespace AccessibilityTester.Editor.Core
             _fontScalerModule?.Dispose();
             _reportWriterModule?.Dispose();
             _contrastMeterModule?.Dispose();
+#if ACCESSIBILITY_TESTER_URP
             _shaderControllerModule?.Dispose();
+#endif
             _coreManager?.Dispose();
         }
 
+#if ACCESSIBILITY_TESTER_URP
         private void LoadRendererDataFromPrefs()
         {
             string path = EditorPrefs.GetString(RendererDataPrefKey, string.Empty);
@@ -69,6 +85,7 @@ namespace AccessibilityTester.Editor.Core
             if (_rendererData != null)
                 EditorPrefs.SetString(RendererDataPrefKey, AssetDatabase.GetAssetPath(_rendererData));
         }
+#endif
 
         private void LoadThresholdsFromPrefs()
         {
@@ -88,6 +105,7 @@ namespace AccessibilityTester.Editor.Core
             GUILayout.Label("Accessibility UI Tester", EditorStyles.boldLabel);
             EditorGUILayout.Space();
 
+#if ACCESSIBILITY_TESTER_URP
             EditorGUI.BeginChangeCheck();
             _rendererData = (UniversalRendererData)EditorGUILayout.ObjectField(
                 "URP Renderer Data", _rendererData, typeof(UniversalRendererData), false);
@@ -106,6 +124,10 @@ namespace AccessibilityTester.Editor.Core
                 _coreManager.RequestToggleBlur();
 
             EditorGUILayout.Space();
+#else
+            EditorGUILayout.HelpBox("Shader Controller (CVD simulation, low vision blur) requires URP and is unavailable in this project.", MessageType.Info);
+            EditorGUILayout.Space();
+#endif
 
             if (GUILayout.Button($"Toggle Contrast Meter ({(_contrastMeterModule.IsActive ? "On" : "Off")})"))
                 _coreManager.RequestToggleContrastMeter();
