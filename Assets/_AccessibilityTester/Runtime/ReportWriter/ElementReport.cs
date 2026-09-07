@@ -22,6 +22,16 @@ namespace AccessibilityTester.Runtime.ReportWriter
         public string foregroundColorHex;
         public string backgroundColorHex;
         public string backgroundSourceLabel;
+
+        // Honesty flag: describes how the background colour was obtained,
+        // since Edit Mode static analysis cannot directly observe the
+        // rendered pixel. "High" = read directly from a Graphic.color.
+        // "Estimated" = sampled from a Sprite's texture pixels (ancestor
+        // tint was white). "Medium"/"Low" = camera-background fallback,
+        // depending on whether the camera uses a solid clear colour.
+        // "Low (unreadable)" = white tint on a sprite whose texture is
+        // not marked Read/Write Enabled, so sampling was not possible.
+        public string backgroundConfidence;
     }
 
     /// <summary>
