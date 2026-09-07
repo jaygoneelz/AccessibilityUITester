@@ -19,13 +19,19 @@ namespace AccessibilityTester.Runtime.ReportWriter
     /// 1. Direct ancestor Graphic.color, if it is not a near-white tint.
     /// 2. If the ancestor is an Image with a Sprite and a white/near-white
     ///    tint, sample the sprite's texture pixels for an estimated
-    ///    effective colour (handles the common "white-tinted coloured
-    ///    sprite" UI pattern). Requires the texture to be marked Read/
-    ///    Write Enabled; falls through if not.
+    ///    effective colour. Requires the texture to be marked Read/Write
+    ///    Enabled; falls through if not.
     /// 3. Camera.main.backgroundColor, if no ancestor Graphic exists at
     ///    all. Only representative if the camera uses a solid colour
     ///    clear flag; flagged lower-confidence otherwise.
-    /// 4. Hardcoded white, only if no ancestor and no Main Camera exist.
+    /// 4. If Camera.main is null (e.g. the scene's camera is not tagged
+    ///    "MainCamera" — observed in Chop Chop, which resolves its camera
+    ///    reference via a manager script rather than the tag convention),
+    ///    fall back to any Camera found in the scene via
+    ///    FindFirstObjectByType, flagged as lower-confidence still since
+    ///    it may not be the actual rendering/gameplay camera.
+    /// 5. Hardcoded white, only if no ancestor and no camera of any kind
+    ///    exist in the scene at all.
     /// </summary>
     public static class SceneReportScanner
     {
@@ -119,25 +125,31 @@ namespace AccessibilityTester.Runtime.ReportWriter
                 return (ancestor.color, ancestor.gameObject.name, "High (direct Graphic.color)");
             }
 
+            // Camera.main requires a GameObject tagged "MainCamera". Some
+            // projects (e.g. Chop Chop) resolve their camera reference via
+            // a manager script instead and leave the camera "Untagged",
+            // which makes Camera.main correctly return null. Fall back to
+            // finding any Camera in the scene before giving up entirely.
             Camera cam = Camera.main;
+            string camSourceNote = "Camera.main";
+            if (cam == null)
+            {
+                cam = UnityEngine.Object.FindFirstObjectByType<Camera>();
+                camSourceNote = "first Camera found in scene (Camera.main was null - " +
+                                "likely untagged as MainCamera)";
+            }
+
             if (cam != null)
             {
                 string confidence = cam.clearFlags == CameraClearFlags.SolidColor
-                    ? "Medium (camera background fallback, solid colour clear flag)"
-                    : "Low (camera background fallback, camera clear flag is not solid colour - not representative)";
+                    ? $"Medium ({camSourceNote}, solid colour clear flag)"
+                    : $"Low ({camSourceNote}, camera clear flag is not solid colour - not representative)";
                 return (cam.backgroundColor, "Camera Background", confidence);
             }
 
-            return (Color.white, "None (no ancestor Graphic, no Main Camera found)", "Low (hardcoded white default)");
+            return (Color.white, "None (no ancestor Graphic, no Camera of any kind found in scene)", "Low (hardcoded white default)");
         }
 
-        /// <summary>
-        /// Attempts to compute the alpha-weighted average colour of a
-        /// sprite's texture region. Returns false if the texture is not
-        /// marked Read/Write Enabled (a per-asset import setting this
-        /// scanner does not modify, since changing it would alter the
-        /// evaluated third-party project's asset configuration).
-        /// </summary>
         private static bool TryGetAverageSpriteColor(Sprite sprite, out Color avgColor)
         {
             avgColor = Color.white;
@@ -158,7 +170,7 @@ namespace AccessibilityTester.Runtime.ReportWriter
                 float r = 0, g = 0, b = 0, totalWeight = 0;
                 foreach (var p in pixels)
                 {
-                    float weight = p.a; // ignore fully transparent pixels
+                    float weight = p.a;
                     r += p.r * weight;
                     g += p.g * weight;
                     b += p.b * weight;
