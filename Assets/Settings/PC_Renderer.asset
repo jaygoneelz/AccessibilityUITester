@@ -67,7 +67,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_Active: 1
   _cvdShader: {fileID: 4800000, guid: 2eca454866074a940bfc3211bdf61eab, type: 3}
-  simulationType: 0
+  simulationType: 3
   _blurShader: {fileID: 4800000, guid: 6e74309b4b041cd4084cb23664b7987f, type: 3}
   blurEnabled: 0
   blurSize: 2
