@@ -1,0 +1,51 @@
+{
+    "sceneName": "SampleScene",
+    "scanTimestampUtc": "2026-09-11T18:38:59.5674558Z",
+    "minContrastRatioUsed": 4.5,
+    "minFontSizePointUsed": 12.0,
+    "totalElementsScanned": 3,
+    "totalFailures": 2,
+    "elements": [
+        {
+            "elementName": "Text (TMP)",
+            "hierarchyPath": "Canvas/Text (TMP)",
+            "sceneName": "SampleScene",
+            "contrastRatio": 1.8109499216079713,
+            "contrastPass": false,
+            "fontSizePoint": 36.0,
+            "fontSizePass": true,
+            "foregroundColorHex": "#FFFFFF",
+            "backgroundColorHex": "#ACC5C5",
+            "backgroundSourceLabel": "Camera Render",
+            "backgroundConfidence": "High (camera rendered to offscreen texture, actual pixel sampled)"
+        },
+        {
+            "elementName": "TEST TEXT 2",
+            "hierarchyPath": "Canvas/TEST TEXT 2",
+            "sceneName": "SampleScene",
+            "contrastRatio": 1.7025362253189088,
+            "contrastPass": false,
+            "fontSizePoint": 36.0,
+            "fontSizePass": true,
+            "foregroundColorHex": "#FFFFFF",
+            "backgroundColorHex": "#B3CACA",
+            "backgroundSourceLabel": "Camera Render",
+            "backgroundConfidence": "High (camera rendered to offscreen texture, actual pixel sampled)"
+        },
+        {
+            "elementName": "Text (TMP)",
+            "hierarchyPath": "Canvas/Button/Text (TMP)",
+            "sceneName": "SampleScene",
+            "contrastRatio": 12.821133613586426,
+            "contrastPass": true,
+            "fontSizePoint": 24.0,
+            "fontSizePass": true,
+            "foregroundColorHex": "#323232",
+            "backgroundColorHex": "#FFFFFF",
+            "backgroundSourceLabel": "Button",
+            "backgroundConfidence": "Low (white tint on sprite, texture not Read/Write Enabled - UI content cannot be camera-rendered)"
+        }
+    ],
+    "scannedInPlayMode": true,
+    "playModeSettleFrames": 30
+}

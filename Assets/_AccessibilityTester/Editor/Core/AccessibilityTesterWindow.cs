@@ -11,17 +11,6 @@ using AccessibilityTester.Editor.ShaderController;
 
 namespace AccessibilityTester.Editor.Core
 {
-    /// <summary>
-    /// Top-level EditorWindow for the Accessibility UI Tester. Owns the
-    /// CoreManager event bus and composes module bridges into a single UI.
-    /// The Shader Controller section (URP-dependent) is compiled in only
-    /// when the ACCESSIBILITY_TESTER_URP scripting define is set, allowing
-    /// this window to run unmodified in projects that use the legacy
-    /// Built-in Render Pipeline and have no URP package installed (e.g.
-    /// Red Runner, evaluated without Shader Controller support).
-    /// Persists the assigned URP Renderer Data and Accessibility
-    /// Thresholds assets across editor sessions via EditorPrefs.
-    /// </summary>
     public class AccessibilityTesterWindow : EditorWindow
     {
 #if ACCESSIBILITY_TESTER_URP
@@ -44,7 +33,7 @@ namespace AccessibilityTester.Editor.Core
         public static void ShowWindow()
         {
             var window = GetWindow<AccessibilityTesterWindow>("Accessibility UI Tester");
-            window.minSize = new Vector2(320, 380);
+            window.minSize = new Vector2(320, 420);
         }
 
         private void OnEnable()
@@ -144,6 +133,10 @@ namespace AccessibilityTester.Editor.Core
                 _reportWriterModule.SetThresholds(_thresholds);
                 SaveThresholdsToPrefs();
             }
+
+            _reportWriterModule.ScanInPlayMode = EditorGUILayout.ToggleLeft(
+                "Scan in Play Mode (accurate for runtime camera-follow scenes; auto enters/exits Play Mode)",
+                _reportWriterModule.ScanInPlayMode);
 
             if (GUILayout.Button("Generate Report"))
                 _coreManager.RequestGenerateReport();
