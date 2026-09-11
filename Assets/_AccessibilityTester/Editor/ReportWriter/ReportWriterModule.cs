@@ -16,27 +16,27 @@ namespace AccessibilityTester.Editor.ReportWriter
     /// Supports two scan modes:
     /// - Edit Mode (default): fast, but scenes using runtime camera-follow
     ///   logic can produce misleading background estimates.
-    /// - Play Mode: enters Play Mode, waits for gameplay scripts to
-    ///   settle, then scans against the actual runtime camera state, and
-    ///   automatically returns to Edit Mode afterward. Uses
-    ///   EditorApplication.playModeStateChanged rather than manually
-    ///   tracked instance state, since entering Play Mode triggers a
-    ///   domain reload by default, which destroys and recreates this
-    ///   module (and any state/subscriptions held only on the instance) —
-    ///   playModeStateChanged is re-subscribed fresh in OnEnable() after
-    ///   any such reload, avoiding a lost-subscription race.
+    /// - Play Mode: enters Play Mode, waits (by wall-clock time, not
+    ///   frame count, since fps varies) for gameplay scripts and any
+    ///   loading/transition screens to settle, then scans against the
+    ///   actual runtime camera state, and automatically returns to Edit
+    ///   Mode afterward. Uses EditorApplication.playModeStateChanged
+    ///   rather than manually tracked instance state, since entering Play
+    ///   Mode triggers a domain reload by default, which destroys and
+    ///   recreates this module — playModeStateChanged is re-subscribed
+    ///   fresh in OnEnable() after any such reload.
     /// </summary>
     public class ReportWriterModule
     {
         private const string OutputFolder = "AccessibilityReports";
-        private const int PlayModeSettleFrames = 30;
+        private const float PlayModeSettleSeconds = 10f;
         private const string PendingScanPrefKey = "AccessibilityTester.PendingPlayModeScan";
 
         private readonly CoreManager _coreManager;
         private AccessibilityThresholds _thresholds;
         private string _lastReportPath;
 
-        private int _framesWaited;
+        private double _settleStartTime;
         private bool _waitingForSettle;
 
         public ReportWriterModule(CoreManager coreManager, AccessibilityThresholds thresholds)
@@ -68,11 +68,8 @@ namespace AccessibilityTester.Editor.ReportWriter
                 return;
             }
 
-            // Persist the "a scan is pending" intent via EditorPrefs, since
-            // entering Play Mode triggers a domain reload that destroys
-            // this object's in-memory state. EditorPrefs survives reloads.
             EditorPrefs.SetBool(PendingScanPrefKey, true);
-            Debug.Log($"[AccessibilityTester] Entering Play Mode to scan with correct runtime camera state (will wait {PlayModeSettleFrames} frames to settle)...");
+            Debug.Log($"[AccessibilityTester] Entering Play Mode to scan with correct runtime camera state (will wait {PlayModeSettleSeconds:F0}s for gameplay/loading to settle)...");
             EditorApplication.EnterPlaymode();
         }
 
@@ -80,7 +77,7 @@ namespace AccessibilityTester.Editor.ReportWriter
         {
             if (state == PlayModeStateChange.EnteredPlayMode && EditorPrefs.GetBool(PendingScanPrefKey, false))
             {
-                _framesWaited = 0;
+                _settleStartTime = EditorApplication.timeSinceStartup;
                 _waitingForSettle = true;
             }
         }
@@ -89,8 +86,8 @@ namespace AccessibilityTester.Editor.ReportWriter
         {
             if (!_waitingForSettle || !Application.isPlaying) return;
 
-            _framesWaited++;
-            if (_framesWaited < PlayModeSettleFrames) return;
+            double elapsed = EditorApplication.timeSinceStartup - _settleStartTime;
+            if (elapsed < PlayModeSettleSeconds) return;
 
             _waitingForSettle = false;
             EditorPrefs.SetBool(PendingScanPrefKey, false);
@@ -106,7 +103,7 @@ namespace AccessibilityTester.Editor.ReportWriter
             stopwatch.Stop();
 
             report.scannedInPlayMode = Application.isPlaying;
-            report.playModeSettleFrames = Application.isPlaying ? PlayModeSettleFrames : 0;
+            report.playModeSettleFrames = Application.isPlaying ? Mathf.RoundToInt(PlayModeSettleSeconds * 60f) : 0;
 
             string json = JsonUtility.ToJson(report, prettyPrint: true);
 
@@ -120,7 +117,7 @@ namespace AccessibilityTester.Editor.ReportWriter
             _lastReportPath = fullPath;
 
             string modeNote = report.scannedInPlayMode
-                ? $"Play Mode scan (settled {PlayModeSettleFrames} frames)"
+                ? $"Play Mode scan (settled {PlayModeSettleSeconds:F0}s)"
                 : "Edit Mode scan";
 
             Debug.Log($"[AccessibilityTester] Report generated ({modeNote}): {report.totalElementsScanned} elements scanned, " +
