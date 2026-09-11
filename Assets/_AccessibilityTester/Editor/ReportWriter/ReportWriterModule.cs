@@ -16,15 +16,27 @@ namespace AccessibilityTester.Editor.ReportWriter
     /// Supports two scan modes:
     /// - Edit Mode (default): fast, but scenes using runtime camera-follow
     ///   logic can produce misleading background estimates.
-    /// - Play Mode: enters Play Mode, waits (by wall-clock time, not
-    ///   frame count, since fps varies) for gameplay scripts and any
-    ///   loading/transition screens to settle, then scans against the
-    ///   actual runtime camera state, and automatically returns to Edit
-    ///   Mode afterward. Uses EditorApplication.playModeStateChanged
-    ///   rather than manually tracked instance state, since entering Play
-    ///   Mode triggers a domain reload by default, which destroys and
-    ///   recreates this module — playModeStateChanged is re-subscribed
-    ///   fresh in OnEnable() after any such reload.
+    /// - Play Mode: two ways to trigger this, depending on whether the
+    ///   Editor is already playing.
+    ///     - Already in Play Mode: scans immediately, against whatever
+    ///       state the developer has navigated the game to themselves.
+    ///       This is the reliable path for any game with a menu, loading
+    ///       screen, or other flow that must be navigated through before
+    ///       reaching the state worth evaluating — this tool has no
+    ///       generic way to know how to click through an arbitrary
+    ///       project's own menu system.
+    ///     - Not yet in Play Mode: can optionally auto-enter Play Mode,
+    ///       wait (by wall-clock time, not frame count, since fps varies)
+    ///       for gameplay scripts to settle, then scan and automatically
+    ///       return to Edit Mode. This only reaches genuine gameplay
+    ///       state for scenes with no menu gating (e.g. a single test
+    ///       scene) — the tool asks for confirmation before doing this,
+    ///       since for a menu-gated game it will scan the menu, not
+    ///       gameplay. Uses EditorApplication.playModeStateChanged rather
+    ///       than manually tracked instance state, since entering Play
+    ///       Mode triggers a domain reload by default, which destroys and
+    ///       recreates this module — playModeStateChanged is re-subscribed
+    ///       fresh in OnEnable() after any such reload.
     /// </summary>
     public class ReportWriterModule
     {
@@ -62,11 +74,36 @@ namespace AccessibilityTester.Editor.ReportWriter
                 return;
             }
 
-            if (!ScanInPlayMode || Application.isPlaying)
+            if (Application.isPlaying)
+            {
+                // Already playing: scan immediately against whatever state
+                // the developer has navigated to. No settle wait needed,
+                // since a human already got the game to the right state.
+                RunScanAndSave();
+                return;
+            }
+
+            if (!ScanInPlayMode)
             {
                 RunScanAndSave();
                 return;
             }
+
+            bool proceed = EditorUtility.DisplayDialog(
+                "Scan in Play Mode",
+                "This will enter Play Mode, wait " + PlayModeSettleSeconds.ToString("F0") +
+                " seconds, then scan automatically and return to Edit Mode.\n\n" +
+                "This only reaches genuine gameplay state for scenes with no menu or " +
+                "loading screen to get through first. For a game with a main menu or " +
+                "start screen, automatic entry will scan whatever the menu screen shows, " +
+                "not gameplay.\n\n" +
+                "For menu-gated games: click Cancel, enter Play Mode yourself, navigate " +
+                "to the state you want evaluated, then click Generate Report again — " +
+                "it will scan immediately with no wait.",
+                "Proceed Automatically",
+                "Cancel");
+
+            if (!proceed) return;
 
             EditorPrefs.SetBool(PendingScanPrefKey, true);
             Debug.Log($"[AccessibilityTester] Entering Play Mode to scan with correct runtime camera state (will wait {PlayModeSettleSeconds:F0}s for gameplay/loading to settle)...");
@@ -117,7 +154,7 @@ namespace AccessibilityTester.Editor.ReportWriter
             _lastReportPath = fullPath;
 
             string modeNote = report.scannedInPlayMode
-                ? $"Play Mode scan (settled {PlayModeSettleSeconds:F0}s)"
+                ? "Play Mode scan"
                 : "Edit Mode scan";
 
             Debug.Log($"[AccessibilityTester] Report generated ({modeNote}): {report.totalElementsScanned} elements scanned, " +

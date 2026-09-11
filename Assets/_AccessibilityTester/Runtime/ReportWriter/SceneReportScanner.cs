@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
@@ -11,20 +12,30 @@ namespace AccessibilityTester.Runtime.ReportWriter
     /// Static-analysis scan of every Canvas in the currently loaded scene.
     /// Finds Text and TextMeshProUGUI elements, computes contrast using
     /// the best available background estimate, checks font size, and
-    /// produces a SceneReport. Runs in Edit Mode.
+    /// produces a SceneReport.
     ///
     /// Background resolution order (each step reports its own confidence
     /// via ElementReport.backgroundConfidence):
     /// 1. Direct ancestor Graphic.color, if not a near-white tint.
     /// 2. If the ancestor is a white-tinted Image with a Sprite, attempt
     ///    texture-pixel sampling. Requires Read/Write Enabled; falls
-    ///    through if not (a genuine, disclosed limitation — see below).
-    /// 3. If no ancestor Graphic exists, render the scene's camera to an
-    ///    offscreen texture and sample the actual rendered pixel at the
-    ///    element's screen position. This captures the true visual
-    ///    background regardless of clear flag (solid colour, skybox, or
-    ///    anything else) and regardless of camera tag, since it reads
-    ///    what is actually rendered rather than a stored settings field.
+    ///    through if not (a genuine, disclosed limitation: UI content is
+    ///    not part of what a Camera renders, so this cannot be solved by
+    ///    camera compositing).
+    /// 3. If no ancestor Graphic exists, composite every enabled Camera
+    ///    in the scene (sorted by m_Depth, respecting each camera's own
+    ///    clear flags) to an offscreen texture and sample the actual
+    ///    rendered pixel at the element's screen position. This correctly
+    ///    handles both single-camera scenes and legacy multi-camera
+    ///    layered rigs (e.g. a parallax-background camera + gameplay
+    ///    camera + UI-backdrop camera + UI camera, as found in Red
+    ///    Runner's Play scene). A Canvas's own worldCamera is deliberately
+    ///    NOT used to narrow this list — worldCamera tells Unity which
+    ///    camera to raycast/project the Canvas from, not which camera(s)
+    ///    contributed to what is visually behind it. A worldCamera with
+    ///    DepthOnly clear flags paints nothing of its own; compositing it
+    ///    alone would reproduce the exact single-camera bug this method
+    ///    exists to fix.
     /// 4. Hardcoded white, only if no ancestor and no camera of any kind
     ///    exist in the scene.
     /// </summary>
@@ -113,14 +124,6 @@ namespace AccessibilityTester.Runtime.ReportWriter
                         return (sampled, ancestor.gameObject.name,
                             "Estimated (sprite texture sampled, ancestor tint was white)");
                     }
-                    // Genuine, disclosed limitation: the coloured background here
-                    // is UI (an Image + Sprite), not 3D scene content a camera
-                    // renders, so camera-render sampling cannot help this case.
-                    // Fixing it would require either modifying the evaluated
-                    // project's texture import settings (Read/Write Enabled) or
-                    // a separate UI-specific render-to-texture subsystem —
-                    // deliberately out of scope, disclosed rather than worked
-                    // around.
                     return (ancestor.color, ancestor.gameObject.name,
                         "Low (white tint on sprite, texture not Read/Write Enabled - UI content cannot be camera-rendered)");
                 }
@@ -128,83 +131,97 @@ namespace AccessibilityTester.Runtime.ReportWriter
                 return (ancestor.color, ancestor.gameObject.name, "High (direct Graphic.color)");
             }
 
-            // No ancestor Graphic: render the actual camera output and sample
-            // the real pixel at this element's screen position. Correct
-            // regardless of clear flag (solid colour or Skybox) and
-            // regardless of camera tag, since it reads what is genuinely
-            // rendered rather than a stored settings field.
-            Camera cam = ResolveCamera(canvas);
-            if (cam != null && TryRenderAndSamplePixel(cam, go.GetComponent<RectTransform>(), canvas, out Color rendered))
+            List<Camera> compositeCameras = ResolveCompositeCameras();
+            if (compositeCameras.Count > 0 && go.GetComponent<RectTransform>() != null)
             {
-                return (rendered, "Camera Render", "High (camera rendered to offscreen texture, actual pixel sampled)");
+                if (TryRenderAndSampleComposite(compositeCameras, go.GetComponent<RectTransform>(), canvas, out Color rendered))
+                {
+                    string label = compositeCameras.Count > 1
+                        ? $"Camera Render ({compositeCameras.Count}-camera composite)"
+                        : "Camera Render";
+                    return (rendered, label, "High (camera(s) rendered to offscreen texture, actual composited pixel sampled)");
+                }
             }
 
-            if (cam != null)
+            if (compositeCameras.Count > 0)
             {
-                // Render-sampling failed for some reason (e.g. degenerate
-                // rect); fall back to the stored field, honestly flagged.
-                string confidence = cam.clearFlags == CameraClearFlags.SolidColor
+                Camera fallbackCam = compositeCameras[0];
+                string confidence = fallbackCam.clearFlags == CameraClearFlags.SolidColor
                     ? "Medium (camera background fallback, solid colour clear flag)"
                     : "Low (camera background fallback, camera clear flag is not solid colour - not representative)";
-                return (cam.backgroundColor, "Camera Background (fallback)", confidence);
+                return (fallbackCam.backgroundColor, "Camera Background (fallback)", confidence);
             }
 
             return (Color.white, "None (no ancestor Graphic, no Camera of any kind found in scene)", "Low (hardcoded white default)");
         }
 
-        private static Camera ResolveCamera(Canvas canvas)
+        /// <summary>
+        /// Finds every enabled, active Camera in the scene, sorted by
+        /// depth ascending (lowest depth renders first). Always returns
+        /// the full scene camera stack — deliberately ignores any
+        /// Canvas's worldCamera assignment, since some rigs (e.g. legacy
+        /// Built-in RP layered setups) compose the final visible image
+        /// from multiple independent cameras, and a Canvas's worldCamera
+        /// may be only the topmost of those (often DepthOnly-cleared,
+        /// painting nothing on its own).
+        /// </summary>
+        private static List<Camera> ResolveCompositeCameras()
         {
-            if (canvas != null && canvas.renderMode != RenderMode.ScreenSpaceOverlay && canvas.worldCamera != null)
-            {
-                return canvas.worldCamera;
-            }
-
-            Camera cam = Camera.main;
-            if (cam == null)
-            {
-                cam = UnityEngine.Object.FindFirstObjectByType<Camera>();
-            }
-            return cam;
+            Camera[] allCameras = UnityEngine.Object.FindObjectsByType<Camera>(FindObjectsSortMode.None);
+            return allCameras
+                .Where(c => c != null && c.enabled && c.gameObject.activeInHierarchy)
+                .OrderBy(c => c.depth)
+                .ToList();
         }
 
         /// <summary>
-        /// Renders the given camera to a temporary offscreen texture and
-        /// samples the average pixel colour within the element's on-screen
-        /// rect. Restores the camera's original targetTexture afterward.
+        /// Renders each camera in the list, in order, to the same
+        /// offscreen texture (respecting each camera's own clear flags,
+        /// so lower-depth cameras establish the base image and
+        /// higher-depth cameras composite on top without wiping it),
+        /// then samples the average pixel colour within the element's
+        /// on-screen rect from the final composited result.
         /// </summary>
-        private static bool TryRenderAndSamplePixel(Camera cam, RectTransform rect, Canvas canvas, out Color sampledColor)
+        private static bool TryRenderAndSampleComposite(List<Camera> cameras, RectTransform rect, Canvas canvas, out Color sampledColor)
         {
             sampledColor = Color.white;
-            if (rect == null) return false;
+            if (rect == null || cameras.Count == 0) return false;
 
             int width = Mathf.Max(64, Screen.width);
             int height = Mathf.Max(64, Screen.height);
 
-            RenderTexture originalTarget = cam.targetTexture;
-            RenderTexture tempRT = RenderTexture.GetTemporary(width, height, 24, RenderTextureFormat.ARGB32);
+            var originalTargets = new RenderTexture[cameras.Count];
+            RenderTexture sharedRT = RenderTexture.GetTemporary(width, height, 24, RenderTextureFormat.ARGB32);
 
             try
             {
-                cam.targetTexture = tempRT;
-                cam.Render();
+                for (int i = 0; i < cameras.Count; i++)
+                {
+                    originalTargets[i] = cameras[i].targetTexture;
+                    cameras[i].targetTexture = sharedRT;
+                }
+
+                foreach (var cam in cameras)
+                {
+                    cam.Render();
+                }
 
                 Vector3[] corners = new Vector3[4];
                 rect.GetWorldCorners(corners);
 
-                Vector2 minScreen, maxScreen;
+                Camera referenceCam = cameras[cameras.Count - 1];
                 bool isOverlay = canvas != null && canvas.renderMode == RenderMode.ScreenSpaceOverlay;
 
+                Vector2 minScreen, maxScreen;
                 if (isOverlay)
                 {
-                    // Overlay canvas world positions already correspond to
-                    // screen pixel coordinates directly.
                     minScreen = new Vector2(corners[0].x, corners[0].y);
                     maxScreen = new Vector2(corners[2].x, corners[2].y);
                 }
                 else
                 {
-                    Vector3 p0 = RectTransformUtility.WorldToScreenPoint(cam, corners[0]);
-                    Vector3 p2 = RectTransformUtility.WorldToScreenPoint(cam, corners[2]);
+                    Vector3 p0 = RectTransformUtility.WorldToScreenPoint(referenceCam, corners[0]);
+                    Vector3 p2 = RectTransformUtility.WorldToScreenPoint(referenceCam, corners[2]);
                     minScreen = new Vector2(Mathf.Min(p0.x, p2.x), Mathf.Min(p0.y, p2.y));
                     maxScreen = new Vector2(Mathf.Max(p0.x, p2.x), Mathf.Max(p0.y, p2.y));
                 }
@@ -215,7 +232,7 @@ namespace AccessibilityTester.Runtime.ReportWriter
                 int h = Mathf.Clamp(Mathf.RoundToInt(maxScreen.y - minScreen.y), 1, height - y);
 
                 RenderTexture previousActive = RenderTexture.active;
-                RenderTexture.active = tempRT;
+                RenderTexture.active = sharedRT;
 
                 Texture2D readback = new Texture2D(w, h, TextureFormat.RGBA32, false);
                 readback.ReadPixels(new Rect(x, y, w, h), 0, 0);
@@ -238,8 +255,11 @@ namespace AccessibilityTester.Runtime.ReportWriter
             }
             finally
             {
-                cam.targetTexture = originalTarget;
-                RenderTexture.ReleaseTemporary(tempRT);
+                for (int i = 0; i < cameras.Count; i++)
+                {
+                    if (cameras[i] != null) cameras[i].targetTexture = originalTargets[i];
+                }
+                RenderTexture.ReleaseTemporary(sharedRT);
             }
         }
 
@@ -292,7 +312,7 @@ namespace AccessibilityTester.Runtime.ReportWriter
             return null;
         }
 
-               private static string GetHierarchyPath(Transform t)
+        private static string GetHierarchyPath(Transform t)
         {
             string path = t.name;
             Transform current = t.parent;
