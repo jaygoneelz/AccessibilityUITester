@@ -1,3 +1,4 @@
+#if ACCESSIBILITY_TESTER_URP
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.RenderGraphModule;
@@ -46,3 +47,4 @@ namespace AccessibilityTester.Runtime.ShaderController
         }
     }
 }
+#endif

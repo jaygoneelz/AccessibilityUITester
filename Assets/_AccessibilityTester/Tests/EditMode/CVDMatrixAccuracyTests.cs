@@ -1,3 +1,4 @@
+#if ACCESSIBILITY_TESTER_URP
 using NUnit.Framework;
 using UnityEngine;
 using AccessibilityTester.Runtime.ShaderController;
@@ -157,3 +158,4 @@ namespace AccessibilityTester.Tests.EditMode
         }
     }
 }
+#endif

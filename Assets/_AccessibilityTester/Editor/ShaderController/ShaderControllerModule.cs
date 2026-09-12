@@ -1,3 +1,4 @@
+#if ACCESSIBILITY_TESTER_URP
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Rendering.Universal;
@@ -97,3 +98,4 @@ namespace AccessibilityTester.Editor.ShaderController
         }
     }
 }
+#endif

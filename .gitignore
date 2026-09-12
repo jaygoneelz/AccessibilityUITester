@@ -106,4 +106,5 @@ InitTestScene*.unity*
 /[Aa]ssets/[Ss]ceneDependencyCache*
 
 AccessibilityReports/
-fps_log.csvdiagnostic_camera_composite.png 
+fps_log.csv
+diagnostic_camera_composite.png
