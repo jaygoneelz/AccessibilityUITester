@@ -6,8 +6,21 @@ using AccessibilityTester.Runtime.ShaderController;
 namespace AccessibilityTester.Tests.EditMode
 {
     /// <summary>
-    /// Verifies the CVD simulation matrices against the X-Rite ColorChecker
-    /// Classic reference patches by computing CIE76 ΔE in CPU-side code.
+    /// CPU-side self-consistency / regression check for CVDMatrixReference's
+    /// matrix-application math. For each ColorChecker patch, applies the CVD
+    /// matrix via CVDMatrixReference.ApplyMatrix twice (same matrix, same
+    /// input) and asserts the two results agree — guarding against the CPU
+    /// path becoming non-deterministic (e.g. an accidental change introducing
+    /// order-dependent floating point rounding).
+    ///
+    /// This does NOT independently verify that the Protanopia / Deuteranopia
+    /// / Tritanopia matrix VALUES are numerically correct: both computations
+    /// use the same matrix, so a wrong matrix would still pass with ΔE = 0.
+    /// The matrix values themselves were checked by hand against Machado,
+    /// Oliveira &amp; Fernandes (2009) Table 1 — see the provenance comment on
+    /// CVDMatrixReference. Independent verification that this CPU math
+    /// matches a genuinely separate implementation (the GPU shader) lives in
+    /// the PlayMode test CVDShaderGpuReadbackTests.
     /// </summary>
     public class CVDMatrixAccuracyTests
     {
@@ -61,9 +74,11 @@ namespace AccessibilityTester.Tests.EditMode
                 Vector3 simulatedLinear = CVDMatrixReference.ApplyMatrix(matrix, linear);
                 simulatedLinear = CVDMatrixReference.ClampVector(simulatedLinear);
 
-                // "Reference" = independently recomputed with the same verified
-                // matrix, confirming the shader's GPU-side math matches this
-                // CPU-side implementation bit-for-bit (within float precision).
+                // Recomputed via the exact same matrix and function as
+                // `simulatedLinear` above — this only proves ApplyMatrix is
+                // deterministic, not that the matrix itself is numerically
+                // correct. No shader/GPU code runs in this file; see
+                // CVDShaderGpuReadbackTests for the actual GPU-vs-CPU check.
                 Vector3 referenceLinear = CVDMatrixReference.ApplyMatrix(matrix, linear);
                 referenceLinear = CVDMatrixReference.ClampVector(referenceLinear);
 

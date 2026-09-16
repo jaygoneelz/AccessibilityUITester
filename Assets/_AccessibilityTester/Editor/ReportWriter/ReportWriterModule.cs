@@ -36,13 +36,22 @@ namespace AccessibilityTester.Editor.ReportWriter
     ///       than manually tracked instance state, since entering Play
     ///       Mode triggers a domain reload by default, which destroys and
     ///       recreates this module — playModeStateChanged is re-subscribed
-    ///       fresh in OnEnable() after any such reload.
+    ///       fresh in OnEnable() after any such reload. The pending-scan
+    ///       flag itself is stored in SessionState (not EditorPrefs), since
+    ///       EditorPrefs is machine-global rather than project-scoped and
+    ///       would otherwise leak a stale "pending scan" flag across
+    ///       different Unity projects; it also self-clears if Play Mode is
+    ///       exited before the settle wait completes, and expires if left
+    ///       unconsumed for too long (e.g. a cancelled Play Mode entry),
+    ///       so it can never silently hijack an unrelated future session.
     /// </summary>
     public class ReportWriterModule
     {
         private const string OutputFolder = "AccessibilityReports";
         private const float PlayModeSettleSeconds = 10f;
-        private const string PendingScanPrefKey = "AccessibilityTester.PendingPlayModeScan";
+        private const string PendingScanSessionKey = "AccessibilityTester.PendingPlayModeScan";
+        private const string PendingScanRequestedAtSessionKey = "AccessibilityTester.PendingPlayModeScan.RequestedAt";
+        private const double PendingScanAbandonAfterSeconds = 120; // guards against a cancelled/never-completed Play Mode entry leaving this set forever
 
         private readonly CoreManager _coreManager;
         private AccessibilityThresholds _thresholds;
@@ -105,17 +114,39 @@ namespace AccessibilityTester.Editor.ReportWriter
 
             if (!proceed) return;
 
-            EditorPrefs.SetBool(PendingScanPrefKey, true);
+            SessionState.SetBool(PendingScanSessionKey, true);
+            SessionState.SetFloat(PendingScanRequestedAtSessionKey, (float)EditorApplication.timeSinceStartup);
             Debug.Log($"[AccessibilityTester] Entering Play Mode to scan with correct runtime camera state (will wait {PlayModeSettleSeconds:F0}s for gameplay/loading to settle)...");
             EditorApplication.EnterPlaymode();
         }
 
         private void OnPlayModeStateChanged(PlayModeStateChange state)
         {
-            if (state == PlayModeStateChange.EnteredPlayMode && EditorPrefs.GetBool(PendingScanPrefKey, false))
+            if (state == PlayModeStateChange.EnteredPlayMode)
             {
+                if (!SessionState.GetBool(PendingScanSessionKey, false)) return;
+
+                double requestedAt = SessionState.GetFloat(PendingScanRequestedAtSessionKey, 0f);
+                double age = EditorApplication.timeSinceStartup - requestedAt;
+                if (age > PendingScanAbandonAfterSeconds)
+                {
+                    // Stale request from an earlier, abandoned attempt (e.g.
+                    // Play Mode entry was cancelled last time) — don't act on it.
+                    SessionState.SetBool(PendingScanSessionKey, false);
+                    return;
+                }
+
                 _settleStartTime = EditorApplication.timeSinceStartup;
                 _waitingForSettle = true;
+            }
+            else if (state == PlayModeStateChange.ExitingPlayMode && _waitingForSettle)
+            {
+                // Play Mode was stopped (manually, or otherwise) before the
+                // settle wait completed — cancel the pending scan instead of
+                // leaving it set for a future, unrelated Play Mode session to
+                // trip over.
+                _waitingForSettle = false;
+                SessionState.SetBool(PendingScanSessionKey, false);
             }
         }
 
@@ -127,7 +158,7 @@ namespace AccessibilityTester.Editor.ReportWriter
             if (elapsed < PlayModeSettleSeconds) return;
 
             _waitingForSettle = false;
-            EditorPrefs.SetBool(PendingScanPrefKey, false);
+            SessionState.SetBool(PendingScanSessionKey, false);
 
             RunScanAndSave();
             EditorApplication.ExitPlaymode();

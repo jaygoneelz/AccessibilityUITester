@@ -25,7 +25,10 @@ namespace AccessibilityTester.Runtime.ReportWriter
     /// 3. If no ancestor Graphic exists, composite every enabled Camera
     ///    in the scene (sorted by m_Depth, respecting each camera's own
     ///    clear flags) to an offscreen texture and sample the actual
-    ///    rendered pixel at the element's screen position. This correctly
+    ///    rendered pixel at the element's screen position. This render +
+    ///    full-screen readback happens at most once per Scan() call (see
+    ///    CompositeRenderCache) — every element needing it crops from the
+    ///    same cached texture rather than re-rendering the scene. This correctly
     ///    handles both single-camera scenes and legacy multi-camera
     ///    layered rigs (e.g. a parallax-background camera + gameplay
     ///    camera + UI-backdrop camera + UI camera, as found in Red
@@ -43,6 +46,27 @@ namespace AccessibilityTester.Runtime.ReportWriter
     {
         private const float WhiteTintThreshold = 0.95f;
 
+        /// <summary>
+        /// Per-scan cache for the camera composite background path. The
+        /// camera list is resolved once per Scan() call, and the composite
+        /// render + full-screen readback happens lazily on the first
+        /// element that needs it, then is reused (cropped per-element) for
+        /// every subsequent element in the same scan — rendering the whole
+        /// scene once instead of once per element was the dominant cost of
+        /// a scan on scenes with many elements lacking an ancestor Graphic.
+        /// </summary>
+        private sealed class CompositeRenderCache
+        {
+            public readonly List<Camera> Cameras;
+            public int Width;
+            public int Height;
+            public Texture2D Readback;
+            public bool RenderAttempted;
+            public bool RenderSucceeded;
+
+            public CompositeRenderCache(List<Camera> cameras) => Cameras = cameras;
+        }
+
         public static SceneReport Scan(AccessibilityThresholds thresholds)
         {
             var report = new SceneReport
@@ -54,11 +78,19 @@ namespace AccessibilityTester.Runtime.ReportWriter
             };
 
             var elements = new List<ElementReport>();
+            var compositeCache = new CompositeRenderCache(ResolveCompositeCameras());
 
-            Canvas[] canvases = UnityEngine.Object.FindObjectsByType<Canvas>(FindObjectsInactive.Include, FindObjectsSortMode.None);
-            foreach (var canvas in canvases)
+            try
             {
-                ScanCanvas(canvas, thresholds, elements);
+                Canvas[] canvases = UnityEngine.Object.FindObjectsByType<Canvas>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+                foreach (var canvas in canvases)
+                {
+                    ScanCanvas(canvas, thresholds, elements, compositeCache);
+                }
+            }
+            finally
+            {
+                if (compositeCache.Readback != null) UnityEngine.Object.DestroyImmediate(compositeCache.Readback);
             }
 
             report.elements = elements.ToArray();
@@ -68,24 +100,24 @@ namespace AccessibilityTester.Runtime.ReportWriter
             return report;
         }
 
-        private static void ScanCanvas(Canvas canvas, AccessibilityThresholds thresholds, List<ElementReport> results)
+        private static void ScanCanvas(Canvas canvas, AccessibilityThresholds thresholds, List<ElementReport> results, CompositeRenderCache compositeCache)
         {
             Text[] legacyTexts = canvas.GetComponentsInChildren<Text>(includeInactive: true);
             foreach (var text in legacyTexts)
             {
-                results.Add(BuildReport(text.gameObject, text.color, text.fontSize, thresholds, canvas));
+                results.Add(BuildReport(text.gameObject, text.color, text.fontSize, thresholds, canvas, compositeCache));
             }
 
             TextMeshProUGUI[] tmpTexts = canvas.GetComponentsInChildren<TextMeshProUGUI>(includeInactive: true);
             foreach (var tmp in tmpTexts)
             {
-                results.Add(BuildReport(tmp.gameObject, tmp.color, tmp.fontSize, thresholds, canvas));
+                results.Add(BuildReport(tmp.gameObject, tmp.color, tmp.fontSize, thresholds, canvas, compositeCache));
             }
         }
 
-        private static ElementReport BuildReport(GameObject go, Color fgColor, float fontSize, AccessibilityThresholds thresholds, Canvas canvas)
+        private static ElementReport BuildReport(GameObject go, Color fgColor, float fontSize, AccessibilityThresholds thresholds, Canvas canvas, CompositeRenderCache compositeCache)
         {
-            (Color bgColor, string bgLabel, string confidence) = GetEffectiveBackground(go, canvas);
+            (Color bgColor, string bgLabel, string confidence) = GetEffectiveBackground(go, canvas, compositeCache);
 
             float ratio = WcagContrastUtility.ContrastRatio(fgColor, bgColor);
             bool contrastPass = ratio >= thresholds.minContrastRatio;
@@ -107,7 +139,7 @@ namespace AccessibilityTester.Runtime.ReportWriter
             };
         }
 
-        private static (Color color, string label, string confidence) GetEffectiveBackground(GameObject go, Canvas canvas)
+        private static (Color color, string label, string confidence) GetEffectiveBackground(GameObject go, Canvas canvas, CompositeRenderCache compositeCache)
         {
             Graphic ancestor = FindAncestorGraphic(go.transform);
 
@@ -131,10 +163,11 @@ namespace AccessibilityTester.Runtime.ReportWriter
                 return (ancestor.color, ancestor.gameObject.name, "High (direct Graphic.color)");
             }
 
-            List<Camera> compositeCameras = ResolveCompositeCameras();
-            if (compositeCameras.Count > 0 && go.GetComponent<RectTransform>() != null)
+            List<Camera> compositeCameras = compositeCache.Cameras;
+            RectTransform rectTransform = go.GetComponent<RectTransform>();
+            if (compositeCameras.Count > 0 && rectTransform != null)
             {
-                if (TryRenderAndSampleComposite(compositeCameras, go.GetComponent<RectTransform>(), canvas, out Color rendered))
+                if (TrySampleComposite(compositeCache, rectTransform, canvas, out Color rendered))
                 {
                     string label = compositeCameras.Count > 1
                         ? $"Camera Render ({compositeCameras.Count}-camera composite)"
@@ -175,23 +208,29 @@ namespace AccessibilityTester.Runtime.ReportWriter
         }
 
         /// <summary>
-        /// Renders each camera in the list, in order, to the same
-        /// offscreen texture (respecting each camera's own clear flags,
-        /// so lower-depth cameras establish the base image and
-        /// higher-depth cameras composite on top without wiping it),
-        /// then samples the average pixel colour within the element's
-        /// on-screen rect from the final composited result.
+        /// Renders every camera in the cache's list, in order, to the same
+        /// offscreen texture (respecting each camera's own clear flags, so
+        /// lower-depth cameras establish the base image and higher-depth
+        /// cameras composite on top without wiping it), then reads back the
+        /// entire screen once into <see cref="CompositeRenderCache.Readback"/>.
+        /// No-ops if already attempted this scan (success or failure) —
+        /// callers must go through TrySampleComposite, which calls this at
+        /// most once per Scan() regardless of how many elements need it.
         /// </summary>
-        private static bool TryRenderAndSampleComposite(List<Camera> cameras, RectTransform rect, Canvas canvas, out Color sampledColor)
+        private static void EnsureCompositeRendered(CompositeRenderCache cache)
         {
-            sampledColor = Color.white;
-            if (rect == null || cameras.Count == 0) return false;
+            if (cache.RenderAttempted) return;
+            cache.RenderAttempted = true;
 
+            List<Camera> cameras = cache.Cameras;
             int width = Mathf.Max(64, Screen.width);
             int height = Mathf.Max(64, Screen.height);
+            cache.Width = width;
+            cache.Height = height;
 
             var originalTargets = new RenderTexture[cameras.Count];
             RenderTexture sharedRT = RenderTexture.GetTemporary(width, height, 24, RenderTextureFormat.ARGB32);
+            RenderTexture previousActive = RenderTexture.active;
 
             try
             {
@@ -206,10 +245,52 @@ namespace AccessibilityTester.Runtime.ReportWriter
                     cam.Render();
                 }
 
+                RenderTexture.active = sharedRT;
+
+                var readback = new Texture2D(width, height, TextureFormat.RGBA32, false);
+                readback.ReadPixels(new Rect(0, 0, width, height), 0, 0);
+                readback.Apply();
+
+                cache.Readback = readback;
+                cache.RenderSucceeded = true;
+            }
+            catch
+            {
+                cache.RenderSucceeded = false;
+            }
+            finally
+            {
+                for (int i = 0; i < cameras.Count; i++)
+                {
+                    if (cameras[i] != null) cameras[i].targetTexture = originalTargets[i];
+                }
+                RenderTexture.ReleaseTemporary(sharedRT);
+                RenderTexture.active = previousActive;
+            }
+        }
+
+        /// <summary>
+        /// Samples the average pixel colour within one element's on-screen
+        /// rect from the composite cached on <paramref name="cache"/>,
+        /// triggering the one-time render via EnsureCompositeRendered if no
+        /// element has needed it yet this scan. Only a CPU-side crop of the
+        /// already-downloaded composite texture happens here — no camera
+        /// render or GPU readback per element.
+        /// </summary>
+        private static bool TrySampleComposite(CompositeRenderCache cache, RectTransform rect, Canvas canvas, out Color sampledColor)
+        {
+            sampledColor = Color.white;
+            if (rect == null || cache.Cameras.Count == 0) return false;
+
+            EnsureCompositeRendered(cache);
+            if (!cache.RenderSucceeded || cache.Readback == null) return false;
+
+            try
+            {
                 Vector3[] corners = new Vector3[4];
                 rect.GetWorldCorners(corners);
 
-                Camera referenceCam = cameras[cameras.Count - 1];
+                Camera referenceCam = cache.Cameras[cache.Cameras.Count - 1];
                 bool isOverlay = canvas != null && canvas.renderMode == RenderMode.ScreenSpaceOverlay;
 
                 Vector2 minScreen, maxScreen;
@@ -226,40 +307,22 @@ namespace AccessibilityTester.Runtime.ReportWriter
                     maxScreen = new Vector2(Mathf.Max(p0.x, p2.x), Mathf.Max(p0.y, p2.y));
                 }
 
-                int x = Mathf.Clamp(Mathf.RoundToInt(minScreen.x), 0, width - 1);
-                int y = Mathf.Clamp(Mathf.RoundToInt(minScreen.y), 0, height - 1);
-                int w = Mathf.Clamp(Mathf.RoundToInt(maxScreen.x - minScreen.x), 1, width - x);
-                int h = Mathf.Clamp(Mathf.RoundToInt(maxScreen.y - minScreen.y), 1, height - y);
+                int x = Mathf.Clamp(Mathf.RoundToInt(minScreen.x), 0, cache.Width - 1);
+                int y = Mathf.Clamp(Mathf.RoundToInt(minScreen.y), 0, cache.Height - 1);
+                int w = Mathf.Clamp(Mathf.RoundToInt(maxScreen.x - minScreen.x), 1, cache.Width - x);
+                int h = Mathf.Clamp(Mathf.RoundToInt(maxScreen.y - minScreen.y), 1, cache.Height - y);
 
-                RenderTexture previousActive = RenderTexture.active;
-                RenderTexture.active = sharedRT;
-
-                Texture2D readback = new Texture2D(w, h, TextureFormat.RGBA32, false);
-                readback.ReadPixels(new Rect(x, y, w, h), 0, 0);
-                readback.Apply();
-
-                RenderTexture.active = previousActive;
-
-                Color[] pixels = readback.GetPixels();
+                Color[] pixels = cache.Readback.GetPixels(x, y, w, h);
                 float r = 0, g = 0, b = 0;
                 foreach (var p in pixels) { r += p.r; g += p.g; b += p.b; }
                 int count = Mathf.Max(1, pixels.Length);
                 sampledColor = new Color(r / count, g / count, b / count, 1f);
 
-                UnityEngine.Object.DestroyImmediate(readback);
                 return true;
             }
             catch
             {
                 return false;
-            }
-            finally
-            {
-                for (int i = 0; i < cameras.Count; i++)
-                {
-                    if (cameras[i] != null) cameras[i].targetTexture = originalTargets[i];
-                }
-                RenderTexture.ReleaseTemporary(sharedRT);
             }
         }
 
