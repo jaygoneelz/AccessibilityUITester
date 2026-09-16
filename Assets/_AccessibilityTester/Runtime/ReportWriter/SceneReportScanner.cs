@@ -4,6 +4,7 @@ using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using AccessibilityTester.Runtime.Common;
 using AccessibilityTester.Runtime.ContrastMeter;
 
 namespace AccessibilityTester.Runtime.ReportWriter
@@ -141,7 +142,7 @@ namespace AccessibilityTester.Runtime.ReportWriter
 
         private static (Color color, string label, string confidence) GetEffectiveBackground(GameObject go, Canvas canvas, CompositeRenderCache compositeCache)
         {
-            Graphic ancestor = FindAncestorGraphic(go.transform);
+            Graphic ancestor = GraphicHierarchyUtility.FindAncestorGraphic(go.transform);
 
             if (ancestor != null)
             {
@@ -361,18 +362,6 @@ namespace AccessibilityTester.Runtime.ReportWriter
             {
                 return false;
             }
-        }
-
-        private static Graphic FindAncestorGraphic(Transform start)
-        {
-            Transform current = start.parent;
-            while (current != null)
-            {
-                var graphic = current.GetComponent<Graphic>();
-                if (graphic != null) return graphic;
-                current = current.parent;
-            }
-            return null;
         }
 
         private static string GetHierarchyPath(Transform t)

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -28,7 +29,7 @@ namespace AccessibilityTester.Runtime.FontScaler
 
         public static int ApplyScale(float factor)
         {
-            TextMeshProUGUI[] allText = Object.FindObjectsByType<TextMeshProUGUI>(FindObjectsSortMode.None);
+            TextMeshProUGUI[] allText = UnityEngine.Object.FindObjectsByType<TextMeshProUGUI>(FindObjectsSortMode.None);
 
             foreach (var tmp in allText)
             {
@@ -62,18 +63,46 @@ namespace AccessibilityTester.Runtime.FontScaler
             IsScaled = false;
         }
 
+        /// <summary>
+        /// Sort-and-sweep overlap detection: process elements left-to-right
+        /// by their xMin, keeping an "active" set of elements whose x-range
+        /// could still overlap one not yet processed. Once an active
+        /// element's xMax falls behind the current element's xMin it can
+        /// never overlap anything later in the sweep (since xMin only
+        /// increases from here on), so it's dropped from the active set —
+        /// this keeps the number of pairwise checks close to the number of
+        /// elements that are actually near each other on the x-axis,
+        /// instead of every possible pair (O(n log n) for the sort, plus
+        /// roughly linear for the sweep on typical, spatially spread-out
+        /// UIs; still O(n²) in the worst case where everything overlaps in
+        /// x, same as the all-pairs approach it replaces).
+        /// </summary>
         private static int DetectAndHighlightOverlaps(TextMeshProUGUI[] elements)
         {
-            var bounds = new Rect[elements.Length];
-            for (int i = 0; i < elements.Length; i++)
+            int n = elements.Length;
+            var bounds = new Rect[n];
+            for (int i = 0; i < n; i++)
             {
                 bounds[i] = GetScreenRect(elements[i].rectTransform);
             }
 
-            var overlapping = new bool[elements.Length];
-            for (int i = 0; i < elements.Length; i++)
+            var overlapping = new bool[n];
+
+            var order = new int[n];
+            for (int i = 0; i < n; i++) order[i] = i;
+            Array.Sort(order, (a, b) => bounds[a].xMin.CompareTo(bounds[b].xMin));
+
+            var active = new List<int>();
+            foreach (int i in order)
             {
-                for (int j = i + 1; j < elements.Length; j++)
+                float xMin = bounds[i].xMin;
+
+                for (int a = active.Count - 1; a >= 0; a--)
+                {
+                    if (bounds[active[a]].xMax < xMin) active.RemoveAt(a);
+                }
+
+                foreach (int j in active)
                 {
                     // Skip parent/child pairs — a label nested inside its
                     // own container overlapping that container is expected,
@@ -87,10 +116,12 @@ namespace AccessibilityTester.Runtime.FontScaler
                         overlapping[j] = true;
                     }
                 }
+
+                active.Add(i);
             }
 
             int count = 0;
-            for (int i = 0; i < elements.Length; i++)
+            for (int i = 0; i < n; i++)
             {
                 if (overlapping[i])
                 {

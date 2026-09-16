@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
+using AccessibilityTester.Runtime.Common;
 #if ENABLE_INPUT_SYSTEM
 using UnityEngine.InputSystem;
 #endif
@@ -32,6 +33,12 @@ namespace AccessibilityTester.Runtime.ContrastMeter
         private Vector2 _lastScreenPosition;
         private string _foregroundName;
         private string _backgroundLabel;
+
+        // Created once on first OnGUI call rather than per-call — OnGUI can
+        // fire multiple times per frame for as long as the badge is shown,
+        // and allocating a new GUIStyle each time was needless GC pressure.
+        private GUIStyle _titleStyle;
+        private GUIStyle _subtitleStyle;
 
         private void Update()
         {
@@ -99,7 +106,7 @@ namespace AccessibilityTester.Runtime.ContrastMeter
                 if (graphic != null) behindLayers.Add(graphic);
             }
 
-            Graphic ancestor = FindAncestorGraphic(foreground.transform);
+            Graphic ancestor = GraphicHierarchyUtility.FindAncestorGraphic(foreground.transform);
             if (ancestor != null && !behindLayers.Contains(ancestor))
             {
                 behindLayers.Add(ancestor);
@@ -130,26 +137,14 @@ namespace AccessibilityTester.Runtime.ContrastMeter
                 : (cam != null ? "Camera Background" : "Unknown (no Main Camera)");
         }
 
-        private static Graphic FindAncestorGraphic(Transform start)
-        {
-            Transform current = start.parent;
-            while (current != null)
-            {
-                var graphic = current.GetComponent<Graphic>();
-                if (graphic != null) return graphic;
-                current = current.parent;
-            }
-            return null;
-        }
-
         private void OnGUI()
         {
             if (!_hasResult) return;
 
             const float badgeWidth = 420f;
             const float badgeHeight = 90f;
-            const int titleFontSize = 28;
-            const int subtitleFontSize = 18;
+
+            EnsureStylesCreated();
 
             string status = _lastPass ? "PASS" : "FAIL";
             Color badgeColor = _lastPass ? new Color(0.15f, 0.55f, 0.15f) : new Color(0.75f, 0.15f, 0.15f);
@@ -165,24 +160,34 @@ namespace AccessibilityTester.Runtime.ContrastMeter
             GUI.Box(rect, string.Empty);
             GUI.color = previousColor;
 
-            GUIStyle titleStyle = new GUIStyle(GUI.skin.label)
+            Rect titleRect = new Rect(rect.x + 14, rect.y + 8, rect.width - 28, 36);
+            GUI.Label(titleRect, $"{status}  {_lastRatio:F2}:1", _titleStyle);
+
+            Rect subtitleRect = new Rect(rect.x + 14, rect.y + 48, rect.width - 28, 32);
+            GUI.Label(subtitleRect, $"{_foregroundName} on {_backgroundLabel}", _subtitleStyle);
+        }
+
+        private void EnsureStylesCreated()
+        {
+            if (_titleStyle != null) return;
+
+            const int titleFontSize = 28;
+            const int subtitleFontSize = 18;
+
+            _titleStyle = new GUIStyle(GUI.skin.label)
             {
                 fontSize = titleFontSize,
                 fontStyle = FontStyle.Bold,
                 alignment = TextAnchor.UpperLeft,
                 normal = { textColor = Color.white }
             };
-            Rect titleRect = new Rect(rect.x + 14, rect.y + 8, rect.width - 28, 36);
-            GUI.Label(titleRect, $"{status}  {_lastRatio:F2}:1", titleStyle);
 
-            GUIStyle subtitleStyle = new GUIStyle(GUI.skin.label)
+            _subtitleStyle = new GUIStyle(GUI.skin.label)
             {
                 fontSize = subtitleFontSize,
                 alignment = TextAnchor.UpperLeft,
                 normal = { textColor = new Color(1f, 1f, 1f, 0.9f) }
             };
-            Rect subtitleRect = new Rect(rect.x + 14, rect.y + 48, rect.width - 28, 32);
-            GUI.Label(subtitleRect, $"{_foregroundName} on {_backgroundLabel}", subtitleStyle);
         }
     }
 }

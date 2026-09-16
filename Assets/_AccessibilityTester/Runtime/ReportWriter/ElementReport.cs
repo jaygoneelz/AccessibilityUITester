@@ -38,6 +38,12 @@ namespace AccessibilityTester.Runtime.ReportWriter
         // scenes using runtime camera-follow logic). See dissertation
         // §4.14 for the specific limitation this addresses.
         public bool scannedInPlayMode;
-        public int playModeSettleFrames;
+
+        // Derived as PlayModeSettleSeconds * 60, assuming 60fps — NOT a
+        // measured frame count. The settle wait itself is wall-clock-timed
+        // (fps varies), so this is only an estimate of how many frames
+        // that wait was roughly equivalent to; 0 when scannedInPlayMode is
+        // false.
+        public int estimatedPlayModeSettleFrames;
     }
 }
