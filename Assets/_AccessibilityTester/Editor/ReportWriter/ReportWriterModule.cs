@@ -171,7 +171,7 @@ namespace AccessibilityTester.Editor.ReportWriter
             stopwatch.Stop();
 
             report.scannedInPlayMode = Application.isPlaying;
-            report.estimatedPlayModeSettleFrames = Application.isPlaying ? Mathf.RoundToInt(PlayModeSettleSeconds * 60f) : 0;
+            report.playModeSettleSecondsUsed = Application.isPlaying ? PlayModeSettleSeconds : 0f;
 
             string json = JsonUtility.ToJson(report, prettyPrint: true);
 
