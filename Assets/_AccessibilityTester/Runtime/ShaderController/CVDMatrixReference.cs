@@ -11,9 +11,9 @@ namespace AccessibilityTester.Runtime.ShaderController
     public static class CVDMatrixReference
     {
         // Machado, Oliveira & Fernandes (2009) full-severity transformation
-        // matrices. Verified against the authors' own published Table 1
-        // (severity = 1.0) at https://www.inf.ufrgs.br/~oliveira/pubs_files/
-        // CVD_Simulation/CVD_Simulation.html — exact match to 6 decimal places.
+        // matrices. Verified against the authors' published Table 1 (severity
+        // = 1.0) at https://www.inf.ufrgs.br/~oliveira/pubs_files/CVD_Simulation/CVD_Simulation.html,
+        // exact match to 6 decimal places.
         public static readonly Matrix4x4 ProtanopiaMatrix = new Matrix4x4(
             new Vector4(0.152286f, 0.114503f, -0.003882f, 0f),
             new Vector4(1.052583f, 0.786281f, -0.048116f, 0f),

@@ -30,7 +30,7 @@ namespace AccessibilityTester.Runtime.ShaderController
         {
             UniversalResourceData resourceData = frameData.Get<UniversalResourceData>();
 
-            // Don't blit directly from the back buffer — URP requirement.
+            // URP doesn't allow blitting directly from the back buffer.
             if (resourceData.isActiveTargetBackBuffer)
                 return;
 

@@ -5,14 +5,11 @@ using TMPro;
 namespace AccessibilityTester.Editor.ReportWriter
 {
     /// <summary>
-    /// Editor utility: populates the active scene's Canvas with a
-    /// specified number of procedurally generated TextMeshProUGUI
-    /// elements, for O3 scan-time stress testing per proposal Phase 4.
-    /// Not part of the shipped tool — development/testing utility only.
-    /// Kept under a separate top-level menu path ("Tools") rather than
-    /// nested under "Window/Accessibility UI Tester" to avoid colliding
-    /// with that menu item, which must remain a direct window-opening
-    /// command rather than becoming a submenu container.
+    /// Editor utility: populates the active scene's Canvas with a specified number
+    /// of procedurally generated TextMeshProUGUI elements for scan-time stress
+    /// testing. Development use only, not part of the shipped tool. It lives under
+    /// the top-level "Tools" menu so it doesn't collide with the
+    /// "Window/Accessibility UI Tester" menu item.
     /// </summary>
     public static class StressTestSceneGenerator
     {

@@ -4,8 +4,7 @@ namespace AccessibilityTester.Runtime.ReportWriter
 {
     /// <summary>
     /// Configurable pass/fail thresholds for the Report Writer scan.
-    /// Stored as an asset so thresholds can be adjusted without
-    /// recompiling, per proposal Phase 4 requirements.
+    /// Stored as an asset so thresholds can be adjusted without recompiling.
     /// </summary>
     [CreateAssetMenu(fileName = "AccessibilityThresholds", menuName = "AccessibilityTester/Accessibility Thresholds")]
     public class AccessibilityThresholds : ScriptableObject

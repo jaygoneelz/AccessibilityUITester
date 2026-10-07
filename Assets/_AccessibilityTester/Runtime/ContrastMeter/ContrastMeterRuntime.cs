@@ -13,17 +13,13 @@ namespace AccessibilityTester.Runtime.ContrastMeter
     /// On left-click, raycasts the UI at the click position via the active
     /// EventSystem and computes an effective foreground/background colour
     /// by alpha-compositing every semi-transparent layer in the raycast
-    /// stack (front-to-back) down to the camera's background colour as an
-    /// opaque base. This handles overlapping/semi-transparent UI layers
-    /// (see proposal Risk #2) rather than reading a single layer's colour
-    /// in isolation. Displays a pass/fail badge at the click position.
-    /// Requires an active EventSystem + GraphicRaycaster; Play Mode only.
-    /// Mouse input is read via the new Input System when the host project
-    /// has it enabled (ENABLE_INPUT_SYSTEM), falling back to the legacy
-    /// Input class otherwise — allows this module to run unmodified in
-    /// third-party projects regardless of their Active Input Handling
-    /// setting (discovered when testing against Red Runner, which uses
-    /// the legacy Input Manager only).
+    /// stack back-to-front onto the camera's background colour as an opaque
+    /// base. Displays a pass/fail badge at the click position. Requires an
+    /// active EventSystem and GraphicRaycaster; Play Mode only. Mouse input
+    /// is read via the new Input System when the host project has it enabled
+    /// (ENABLE_INPUT_SYSTEM), falling back to the legacy Input class
+    /// otherwise, so this module runs regardless of the host project's
+    /// Active Input Handling setting.
     /// </summary>
     public class ContrastMeterRuntime : MonoBehaviour
     {
@@ -34,9 +30,9 @@ namespace AccessibilityTester.Runtime.ContrastMeter
         private string _foregroundName;
         private string _backgroundLabel;
 
-        // Created once on first OnGUI call rather than per-call — OnGUI can
-        // fire multiple times per frame for as long as the badge is shown,
-        // and allocating a new GUIStyle each time was needless GC pressure.
+        // Created once on first OnGUI call. OnGUI can fire multiple times
+        // per frame while the badge is shown, so allocating a new GUIStyle
+        // each time would be needless GC pressure.
         private GUIStyle _titleStyle;
         private GUIStyle _subtitleStyle;
 
@@ -72,7 +68,7 @@ namespace AccessibilityTester.Runtime.ContrastMeter
         {
             if (EventSystem.current == null)
             {
-                Debug.LogWarning("[AccessibilityTester] No EventSystem in scene — Contrast Meter cannot raycast UI.");
+                Debug.LogWarning("[AccessibilityTester] No EventSystem in scene. Contrast Meter cannot raycast UI.");
                 return;
             }
 

@@ -64,18 +64,11 @@ namespace AccessibilityTester.Runtime.FontScaler
         }
 
         /// <summary>
-        /// Sort-and-sweep overlap detection: process elements left-to-right
-        /// by their xMin, keeping an "active" set of elements whose x-range
-        /// could still overlap one not yet processed. Once an active
-        /// element's xMax falls behind the current element's xMin it can
-        /// never overlap anything later in the sweep (since xMin only
-        /// increases from here on), so it's dropped from the active set —
-        /// this keeps the number of pairwise checks close to the number of
-        /// elements that are actually near each other on the x-axis,
-        /// instead of every possible pair (O(n log n) for the sort, plus
-        /// roughly linear for the sweep on typical, spatially spread-out
-        /// UIs; still O(n²) in the worst case where everything overlaps in
-        /// x, same as the all-pairs approach it replaces).
+        /// Sort-and-sweep overlap detection. Elements are processed left to right by
+        /// xMin, keeping an active set whose x-range can still overlap later elements;
+        /// an element drops out once its xMax falls behind the current xMin. Typical
+        /// UIs need close to linear pair checks. The worst case, where everything
+        /// overlaps in x, is still O(n^2), the same as the all-pairs approach it replaces.
         /// </summary>
         private static int DetectAndHighlightOverlaps(TextMeshProUGUI[] elements)
         {
@@ -104,9 +97,8 @@ namespace AccessibilityTester.Runtime.FontScaler
 
                 foreach (int j in active)
                 {
-                    // Skip parent/child pairs — a label nested inside its
-                    // own container overlapping that container is expected,
-                    // not a resize-induced collision.
+                    // Skip parent/child pairs. A label nested inside its own
+                    // container is expected to overlap that container.
                     if (elements[i].transform.IsChildOf(elements[j].transform)) continue;
                     if (elements[j].transform.IsChildOf(elements[i].transform)) continue;
 

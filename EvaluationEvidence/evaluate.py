@@ -1,24 +1,24 @@
 """
-evaluate.py — Precision/recall/F-score evaluation for Accessibility UI Tester's
-Report Writer module, against an independently-verified ground-truth benchmark.
+Precision/recall/F-score evaluation for Accessibility UI Tester's Report
+Writer module, against an independently-verified ground-truth benchmark.
 
-Ground truth was established via live Contrast Meter (Play Mode) sampling —
+Ground truth was established via live Contrast Meter (Play Mode) sampling,
 a different measurement pathway from Report Writer's static (Edit Mode)
-analysis — across two independent third-party Unity projects (Red Runner,
+analysis, across two independent third-party Unity projects (Red Runner,
 BayatGames/RedRunner, MIT; Chop Chop, UnityTechnologies/open-project-1).
 
 Sample composition: 15 elements deliberately selected to test specific
-limitation categories identified during exploratory analysis, plus 6 drawn
-via unbiased random sampling with fixed, documented seeds (42 and 43) for
-reproducibility. See ground_truth_labels.csv's `selection_method` column.
+limitation categories, plus 6 drawn via unbiased random sampling with
+fixed, documented seeds (42 and 43) for reproducibility. See
+ground_truth_labels.csv's `selection_method` column.
 
 Usage:
     python evaluate.py [path/to/ground_truth_labels.csv]
 
 Outputs the confusion matrix and precision/recall/F1 for the full combined
-sample, then the same metrics restricted to only the randomly-sampled subset
-(reported separately, since a smaller denominator from the same single error
-produces a noisier estimate — see dissertation Results chapter for discussion).
+sample, then the same metrics restricted to only the randomly-sampled
+subset. That's reported separately because a smaller denominator from the
+same single error produces a noisier estimate.
 """
 
 import csv
@@ -95,7 +95,7 @@ def print_report(title: str, rows: list[dict]) -> None:
             if row.get("notes"):
                 print(f"    Note: {row['notes']}")
     else:
-        print("\nNo mismatches — 100% classification agreement in this subset.")
+        print("\nNo mismatches. 100% classification agreement in this subset.")
 
 
 def main() -> None:
@@ -110,18 +110,18 @@ def main() -> None:
 
     print_report(f"FULL COMBINED SAMPLE (n={len(rows)})", rows)
 
-    # Note: "random_adjacent" entries were clicked incidentally while
-    # verifying a true random draw sitting next to them, not selected by
-    # the seeded random.sample() process itself — grouped with the
-    # deliberate subset for reporting purposes, matching the dissertation's
-    # stated n=6 random-sample figure (random_seed42 + random_seed43 only).
+    # "random_adjacent" entries were clicked incidentally while verifying a
+    # true random draw sitting next to them, not selected by the seeded
+    # random.sample() process itself. Grouped with the deliberate subset for
+    # reporting purposes so the random-sample subset below stays at exactly
+    # n=6 (random_seed42 + random_seed43 only).
     random_rows = [
         r for r in rows
         if r["selection_method"].startswith("random_seed")
     ]
     print_report(
-        f"RANDOM-SAMPLE-ONLY SUBSET (n={len(random_rows)}) "
-        "— reported separately for transparency about selection-bias risk "
+        f"RANDOM-SAMPLE-ONLY SUBSET (n={len(random_rows)}): "
+        "reported separately for transparency about selection-bias risk "
         "in the combined figure above",
         random_rows,
     )
@@ -131,8 +131,8 @@ def main() -> None:
         if r["selection_method"] in ("deliberate", "random_adjacent")
     ]
     print_report(
-        f"DELIBERATE-SELECTION SUBSET (n={len(deliberate_rows)}) "
-        "— elements chosen to specifically test known limitation categories",
+        f"DELIBERATE-SELECTION SUBSET (n={len(deliberate_rows)}): "
+        "elements chosen to specifically test known limitation categories",
         deliberate_rows,
     )
 

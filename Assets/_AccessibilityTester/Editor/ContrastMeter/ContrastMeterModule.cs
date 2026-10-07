@@ -48,7 +48,7 @@ namespace AccessibilityTester.Editor.ContrastMeter
             GameObject host = GameObject.Find(RuntimeObjectName) ?? new GameObject(RuntimeObjectName);
             _runtimeInstance = host.GetComponent<ContrastMeterRuntime>()
                                 ?? host.AddComponent<ContrastMeterRuntime>();
-            // Explicitly start disabled — the toggle is the only thing
+            // Explicitly start disabled. The toggle is the only thing
             // that should turn this on.
             _runtimeInstance.enabled = false;
         }

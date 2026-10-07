@@ -6,7 +6,7 @@ namespace AccessibilityTester.Editor.FontScaler
 {
     /// <summary>
     /// Bridges the CoreManager event bus (Editor) to FontScalerUtility
-    /// (Runtime, pure logic). Edit Mode safe — no Play Mode required.
+    /// (Runtime, pure logic). Edit Mode safe; no Play Mode required.
     /// </summary>
     public class FontScalerModule
     {

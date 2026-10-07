@@ -10,51 +10,42 @@ using AccessibilityTester.Runtime.ContrastMeter;
 namespace AccessibilityTester.Runtime.ReportWriter
 {
     /// <summary>
-    /// Static-analysis scan of every Canvas in the currently loaded scene.
-    /// Finds Text and TextMeshProUGUI elements, computes contrast using
-    /// the best available background estimate, checks font size, and
+    /// Static-analysis scan of every Canvas in the currently loaded scene. Finds
+    /// Text and TextMeshProUGUI elements, estimates each one's background
+    /// color, checks contrast and font size against the given thresholds, and
     /// produces a SceneReport.
     ///
-    /// Background resolution order (each step reports its own confidence
-    /// via ElementReport.backgroundConfidence):
+    /// Background is resolved in order, each step reporting its own confidence
+    /// via ElementReport.backgroundConfidence:
     /// 1. Direct ancestor Graphic.color, if not a near-white tint.
-    /// 2. If the ancestor is a white-tinted Image with a Sprite, attempt
-    ///    texture-pixel sampling. Requires Read/Write Enabled; falls
-    ///    through if not (a genuine, disclosed limitation: UI content is
-    ///    not part of what a Camera renders, so this cannot be solved by
-    ///    camera compositing).
-    /// 3. If no ancestor Graphic exists, composite every enabled Camera
-    ///    in the scene (sorted by m_Depth, respecting each camera's own
-    ///    clear flags) to an offscreen texture and sample the actual
-    ///    rendered pixel at the element's screen position. This render +
-    ///    full-screen readback happens at most once per Scan() call (see
-    ///    CompositeRenderCache) — every element needing it crops from the
-    ///    same cached texture rather than re-rendering the scene. This correctly
-    ///    handles both single-camera scenes and legacy multi-camera
-    ///    layered rigs (e.g. a parallax-background camera + gameplay
-    ///    camera + UI-backdrop camera + UI camera, as found in Red
-    ///    Runner's Play scene). A Canvas's own worldCamera is deliberately
-    ///    NOT used to narrow this list — worldCamera tells Unity which
-    ///    camera to raycast/project the Canvas from, not which camera(s)
-    ///    contributed to what is visually behind it. A worldCamera with
-    ///    DepthOnly clear flags paints nothing of its own; compositing it
-    ///    alone would reproduce the exact single-camera bug this method
-    ///    exists to fix.
-    /// 4. Hardcoded white, only if no ancestor and no camera of any kind
-    ///    exist in the scene.
+    /// 2. If the ancestor is a white-tinted Image with a Sprite, sample the
+    ///    sprite texture directly. If the texture isn't Read/Write Enabled,
+    ///    this returns the ancestor's own near-white color with low
+    ///    confidence instead, since UI content isn't rendered by a Camera
+    ///    and so can't be recovered by camera compositing either.
+    /// 3. If no ancestor Graphic exists, composite every enabled Camera in the
+    ///    scene (sorted by depth, respecting each camera's own clear flags) to
+    ///    an offscreen texture and sample the rendered pixel at the element's
+    ///    screen position. The composite render and readback happen at most
+    ///    once per Scan() call; every element crops from the same cached
+    ///    texture. A Canvas's own worldCamera is deliberately not used to
+    ///    narrow the camera list: it only says which camera projects the
+    ///    Canvas, not which cameras contributed to what's visually behind it,
+    ///    and is often DepthOnly-cleared, so compositing it alone would miss
+    ///    layered multi-camera rigs.
+    /// 4. Hardcoded white, only if no ancestor and no camera of any kind exist
+    ///    in the scene.
     /// </summary>
     public static class SceneReportScanner
     {
         private const float WhiteTintThreshold = 0.95f;
 
         /// <summary>
-        /// Per-scan cache for the camera composite background path. The
-        /// camera list is resolved once per Scan() call, and the composite
-        /// render + full-screen readback happens lazily on the first
-        /// element that needs it, then is reused (cropped per-element) for
-        /// every subsequent element in the same scan — rendering the whole
-        /// scene once instead of once per element was the dominant cost of
-        /// a scan on scenes with many elements lacking an ancestor Graphic.
+        /// Per-scan cache for the camera composite background path. The camera
+        /// list is resolved once per Scan() call, and the composite render and
+        /// full-screen readback happen lazily on the first element that needs
+        /// them, then get reused (cropped per element) for the rest of the scan
+        /// instead of re-rendering the scene for every element.
         /// </summary>
         private sealed class CompositeRenderCache
         {
@@ -192,7 +183,7 @@ namespace AccessibilityTester.Runtime.ReportWriter
         /// <summary>
         /// Finds every enabled, active Camera in the scene, sorted by
         /// depth ascending (lowest depth renders first). Always returns
-        /// the full scene camera stack — deliberately ignores any
+        /// the full scene camera stack and deliberately ignores any
         /// Canvas's worldCamera assignment, since some rigs (e.g. legacy
         /// Built-in RP layered setups) compose the final visible image
         /// from multiple independent cameras, and a Canvas's worldCamera
@@ -214,8 +205,8 @@ namespace AccessibilityTester.Runtime.ReportWriter
         /// lower-depth cameras establish the base image and higher-depth
         /// cameras composite on top without wiping it), then reads back the
         /// entire screen once into <see cref="CompositeRenderCache.Readback"/>.
-        /// No-ops if already attempted this scan (success or failure) —
-        /// callers must go through TrySampleComposite, which calls this at
+        /// No-ops if already attempted this scan, success or failure.
+        /// Callers reach this through TrySampleComposite, which calls it at
         /// most once per Scan() regardless of how many elements need it.
         /// </summary>
         private static void EnsureCompositeRendered(CompositeRenderCache cache)
@@ -275,7 +266,7 @@ namespace AccessibilityTester.Runtime.ReportWriter
         /// rect from the composite cached on <paramref name="cache"/>,
         /// triggering the one-time render via EnsureCompositeRendered if no
         /// element has needed it yet this scan. Only a CPU-side crop of the
-        /// already-downloaded composite texture happens here — no camera
+        /// already-downloaded composite texture happens here; no camera
         /// render or GPU readback per element.
         /// </summary>
         private static bool TrySampleComposite(CompositeRenderCache cache, RectTransform rect, Canvas canvas, out Color sampledColor)

@@ -7,9 +7,8 @@ using AccessibilityTester.Runtime.FontScaler;
 namespace AccessibilityTester.Tests.EditMode
 {
     /// <summary>
-    /// EditMode regression tests for FontScalerUtility's overlap detection
-    /// (now sort-and-sweep) — the true-positive and true-negative cases
-    /// that were previously only verified manually during development.
+    /// EditMode regression tests for FontScalerUtility's sort-and-sweep
+    /// overlap detection: true-positive and true-negative cases.
     /// </summary>
     public class FontScalerUtilityTests
     {
@@ -30,7 +29,7 @@ namespace AccessibilityTester.Tests.EditMode
         {
             // FontScalerUtility's cache is a static Dictionary, so it must
             // be cleared between tests the same way a real user would via
-            // the tool's own Revert button — otherwise state from one test
+            // the tool's own Revert button. Otherwise state from one test
             // could leak into the next.
             FontScalerUtility.Revert();
 

@@ -9,15 +9,15 @@ namespace AccessibilityTester.Tests.EditMode
     /// CPU-side self-consistency / regression check for CVDMatrixReference's
     /// matrix-application math. For each ColorChecker patch, applies the CVD
     /// matrix via CVDMatrixReference.ApplyMatrix twice (same matrix, same
-    /// input) and asserts the two results agree — guarding against the CPU
+    /// input) and asserts the two results agree. This guards against the CPU
     /// path becoming non-deterministic (e.g. an accidental change introducing
     /// order-dependent floating point rounding).
     ///
-    /// This does NOT independently verify that the Protanopia / Deuteranopia
-    /// / Tritanopia matrix VALUES are numerically correct: both computations
+    /// This does not independently verify that the Protanopia, Deuteranopia,
+    /// and Tritanopia matrix values are numerically correct: both computations
     /// use the same matrix, so a wrong matrix would still pass with ΔE = 0.
     /// The matrix values themselves were checked by hand against Machado,
-    /// Oliveira &amp; Fernandes (2009) Table 1 — see the provenance comment on
+    /// Oliveira &amp; Fernandes (2009) Table 1; see the provenance comment on
     /// CVDMatrixReference. Independent verification that this CPU math
     /// matches a genuinely separate implementation (the GPU shader) lives in
     /// the PlayMode test CVDShaderGpuReadbackTests.
@@ -28,9 +28,8 @@ namespace AccessibilityTester.Tests.EditMode
 
         // X-Rite ColorChecker Classic, sRGB reference values (0-255),
         // sourced from Lindbloom's ColorChecker Calculator sRGB table.
-        // Patch 24 (Cyan) is genuinely out-of-gamut in sRGB (negative R);
-        // clamped to 0 to match real-display behaviour, noted as a
-        // known limitation in the dissertation methodology.
+        // Patch 18 (Cyan) is genuinely out-of-gamut in sRGB (negative R),
+        // clamped to 0 to match real-display behaviour.
         private static readonly Vector3[] ColorCheckerPatches =
         {
             new Vector3(115,80,64),   new Vector3(195,151,130), new Vector3(94,123,156),
@@ -75,7 +74,7 @@ namespace AccessibilityTester.Tests.EditMode
                 simulatedLinear = CVDMatrixReference.ClampVector(simulatedLinear);
 
                 // Recomputed via the exact same matrix and function as
-                // `simulatedLinear` above — this only proves ApplyMatrix is
+                // `simulatedLinear` above. This only proves ApplyMatrix is
                 // deterministic, not that the matrix itself is numerically
                 // correct. No shader/GPU code runs in this file; see
                 // CVDShaderGpuReadbackTests for the actual GPU-vs-CPU check.

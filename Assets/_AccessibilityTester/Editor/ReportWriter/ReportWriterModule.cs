@@ -9,41 +9,19 @@ using Debug = UnityEngine.Debug;
 namespace AccessibilityTester.Editor.ReportWriter
 {
     /// <summary>
-    /// Bridges the CoreManager event bus (Editor) to SceneReportScanner
-    /// (Runtime, pure logic). Serializes the resulting SceneReport to
-    /// JSON in the project's output folder.
+    /// Bridges the CoreManager event bus to SceneReportScanner and writes the
+    /// resulting SceneReport as JSON in the project's output folder.
     ///
-    /// Supports two scan modes:
-    /// - Edit Mode (default): fast, but scenes using runtime camera-follow
-    ///   logic can produce misleading background estimates.
-    /// - Play Mode: two ways to trigger this, depending on whether the
-    ///   Editor is already playing.
-    ///     - Already in Play Mode: scans immediately, against whatever
-    ///       state the developer has navigated the game to themselves.
-    ///       This is the reliable path for any game with a menu, loading
-    ///       screen, or other flow that must be navigated through before
-    ///       reaching the state worth evaluating — this tool has no
-    ///       generic way to know how to click through an arbitrary
-    ///       project's own menu system.
-    ///     - Not yet in Play Mode: can optionally auto-enter Play Mode,
-    ///       wait (by wall-clock time, not frame count, since fps varies)
-    ///       for gameplay scripts to settle, then scan and automatically
-    ///       return to Edit Mode. This only reaches genuine gameplay
-    ///       state for scenes with no menu gating (e.g. a single test
-    ///       scene) — the tool asks for confirmation before doing this,
-    ///       since for a menu-gated game it will scan the menu, not
-    ///       gameplay. Uses EditorApplication.playModeStateChanged rather
-    ///       than manually tracked instance state, since entering Play
-    ///       Mode triggers a domain reload by default, which destroys and
-    ///       recreates this module — playModeStateChanged is re-subscribed
-    ///       fresh in OnEnable() after any such reload. The pending-scan
-    ///       flag itself is stored in SessionState (not EditorPrefs), since
-    ///       EditorPrefs is machine-global rather than project-scoped and
-    ///       would otherwise leak a stale "pending scan" flag across
-    ///       different Unity projects; it also self-clears if Play Mode is
-    ///       exited before the settle wait completes, and expires if left
-    ///       unconsumed for too long (e.g. a cancelled Play Mode entry),
-    ///       so it can never silently hijack an unrelated future session.
+    /// Edit Mode scans run immediately. If the Editor is already in Play Mode,
+    /// the scan runs against whatever state you have navigated to, which is the
+    /// reliable path for games with menus or loading screens. Otherwise the tool
+    /// can enter Play Mode, wait PlayModeSettleSeconds, scan, and exit. That only
+    /// reaches gameplay in scenes with no menu gating, so it asks for
+    /// confirmation first.
+    ///
+    /// The pending-scan flag lives in SessionState so it survives the domain
+    /// reload that entering Play Mode triggers. It clears if Play Mode exits
+    /// early and expires if unused, so it can't affect a later session.
     /// </summary>
     public class ReportWriterModule
     {
@@ -107,8 +85,8 @@ namespace AccessibilityTester.Editor.ReportWriter
                 "start screen, automatic entry will scan whatever the menu screen shows, " +
                 "not gameplay.\n\n" +
                 "For menu-gated games: click Cancel, enter Play Mode yourself, navigate " +
-                "to the state you want evaluated, then click Generate Report again — " +
-                "it will scan immediately with no wait.",
+                "to the state you want evaluated, then click Generate Report again. " +
+                "It will scan immediately with no wait.",
                 "Proceed Automatically",
                 "Cancel");
 
@@ -131,7 +109,7 @@ namespace AccessibilityTester.Editor.ReportWriter
                 if (age > PendingScanAbandonAfterSeconds)
                 {
                     // Stale request from an earlier, abandoned attempt (e.g.
-                    // Play Mode entry was cancelled last time) — don't act on it.
+                    // Play Mode entry was cancelled last time). Don't act on it.
                     SessionState.SetBool(PendingScanSessionKey, false);
                     return;
                 }
@@ -142,7 +120,7 @@ namespace AccessibilityTester.Editor.ReportWriter
             else if (state == PlayModeStateChange.ExitingPlayMode && _waitingForSettle)
             {
                 // Play Mode was stopped (manually, or otherwise) before the
-                // settle wait completed — cancel the pending scan instead of
+                // settle wait completed. Cancel the pending scan instead of
                 // leaving it set for a future, unrelated Play Mode session to
                 // trip over.
                 _waitingForSettle = false;

@@ -3,13 +3,9 @@ using UnityEngine;
 namespace AccessibilityTester.Runtime.ContrastMeter
 {
     /// <summary>
-    /// WCAG 2.1 luminance-contrast calculations (Success Criterion 1.4.3).
-    /// Formula: contrast = (L1 + 0.05) / (L2 + 0.05), L1/L2 = relative luminance.
-    /// Threshold 0.04045 is used instead of the literal WCAG 2.1 text value
-    /// (0.03928) — 0.03928 is a known rounding inconsistency in the original
-    /// spec, corrected to 0.04045 in WCAG 2.2 to match the true sRGB (IEC
-    /// 61966-2-1) crossover point. Numeric effect on pass/fail outcomes is
-    /// negligible; 0.04045 is used here as the mathematically correct value.
+    /// WCAG 2.1 contrast ratio calculations (Success Criterion 1.4.3).
+    /// Uses 0.04045 instead of the literal spec value 0.03928, a known rounding
+    /// error corrected in WCAG 2.2 to match the true sRGB crossover point.
     /// </summary>
     public static class WcagContrastUtility
     {

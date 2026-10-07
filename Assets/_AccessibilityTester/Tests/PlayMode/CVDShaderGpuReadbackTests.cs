@@ -17,7 +17,7 @@ namespace AccessibilityTester.Tests.PlayMode
         private Material _material;
 
         // X-Rite ColorChecker Classic, sRGB 0-255 (Lindbloom sRGB table).
-        // Patch 18 (Cyan) clamped to 0 on R — genuinely out-of-gamut in sRGB.
+        // Patch 18 (Cyan) clamped to 0 on R, genuinely out-of-gamut in sRGB.
         private static readonly Color[] Patches =
         {
             C(115,80,64),   C(195,151,130), C(94,123,156),
@@ -59,7 +59,6 @@ namespace AccessibilityTester.Tests.PlayMode
                 Vector3 cpuLinearIn = new Vector3(
                     CVDMatrixReference.SrgbToLinear(srgb.r), CVDMatrixReference.SrgbToLinear(srgb.g), CVDMatrixReference.SrgbToLinear(srgb.b));
 
-                // Render this patch through the actual shader
                 var src = new Texture2D(4, 4, TextureFormat.RGBAFloat, false, true);
                 Color linearColor = new Color(cpuLinearIn.x, cpuLinearIn.y, cpuLinearIn.z, 1f);
                 var fill = new Color[16];

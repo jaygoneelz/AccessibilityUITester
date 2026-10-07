@@ -88,7 +88,7 @@ namespace AccessibilityTester.Tests.EditMode
         {
             // A Canvas GameObject is not itself a Graphic, so a text element
             // parented directly under it (no Image/other Graphic ancestor
-            // in between) has no ancestor Graphic — the scanner must fall
+            // in between) has no ancestor Graphic. The scanner must fall
             // back to camera-based background resolution instead of
             // defaulting straight to the hardcoded-white case.
             Canvas canvas = CreateCanvas();

@@ -15,7 +15,7 @@ namespace AccessibilityTester.Tests.EditMode
             Assert.AreEqual(0, CoreManagerTestUtility.GetSubscriberCount(coreManager, "OnToggleCvdSimulationRequested"));
             Assert.AreEqual(0, CoreManagerTestUtility.GetSubscriberCount(coreManager, "OnToggleBlurRequested"));
 
-            // A null UniversalRendererData is fine here — the constructor's
+            // A null UniversalRendererData is fine here. The constructor's
             // FindFeature() call early-returns on a null renderer data, and
             // subscription doesn't depend on it.
             var module = new ShaderControllerModule(coreManager, null);

@@ -35,8 +35,7 @@ namespace AccessibilityTester.Runtime.ReportWriter
         // Records whether this scan ran with the game actually running
         // (Play Mode, correct runtime camera state) or statically (Edit
         // Mode, camera may be at an unrepresentative default position for
-        // scenes using runtime camera-follow logic). See dissertation
-        // §4.14 for the specific limitation this addresses.
+        // scenes using runtime camera-follow logic).
         public bool scannedInPlayMode;
 
         public float playModeSettleSecondsUsed;
