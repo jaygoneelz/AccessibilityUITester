@@ -57,6 +57,7 @@ _AccessibilityTester/
     ShaderController/    CVD sim + blur (URP-only, see below)
     Shaders/             CVD + Gaussian blur shaders
     ScriptableObjects/   DefaultAccessibilityThresholds.asset
+    Common/              shared helpers (GraphicHierarchyUtility)
     LICENSE.txt          bundled with the .unitypackage
   Editor/
     Core/                AccessibilityTesterWindow, CoreManager
@@ -89,7 +90,7 @@ Finding your Renderer Data asset: your URP Pipeline Asset (the one referenced in
 1. Enter **Play Mode**.
 2. Click **Toggle Contrast Meter** in the tool window.
 3. Click any UI element on screen. A badge appears showing the live WCAG contrast ratio and PASS/FAIL against the 4.5:1 (normal text) threshold, along with what background it detected.
-4. Contrast Meter composites semi-transparent or overlapping UI layers back-to-front rather than reading a single layer in isolation, and falls back to the camera's background colour when an element has no ancestor background graphic.
+4. Contrast Meter composites semi-transparent or overlapping UI layers back-to-front rather than reading a single layer in isolation, and falls back to the camera's background colour when an element has no ancestor background graphic. It works with either the legacy Input Manager or the new Input System.
 
 ### Report Writer
 
