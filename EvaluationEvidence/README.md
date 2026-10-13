@@ -54,6 +54,7 @@ Of the 21 verified elements, exactly one (`ChopChop / VersionNo`) shows a disagr
 - **`O3_stress_test_1000elements.json`**: the earlier stress-test run, recorded before the camera-composite caching fix. Kept for history. Its 9 ms timing is out of date.
 - **`phase2_camera_render_fix_verified.json`**: Report Writer output from the Phase 2 camera-render change, kept as the record of the first run that used the offscreen camera composite.
 - **`playmode_scan_singleclick_fix.json`**: Play Mode scan output recorded after the single-click fix, kept for reference.
+- **`Play_20260911_221520.json`**: Red Runner Play Mode scan after the multi-camera fix (8 elements, 3 failures). It is printed in full as Appendix C.4 of the project report.
 - **`O3_stress_test_1000elements_current.json`**: a Report Writer scan of the generated 1000-element stress scene (1003 elements in total, including the 3 from the base scene) on the final code, in Edit Mode. The Console reported a scan time of 32 ms. Every element except one used the camera-render background method; the exception was a sprite whose texture is not Read/Write Enabled, reported with Low confidence.
 
 Scan time depends on Game view size and on whether the scan is the first one after a domain reload, so treat the figure as a single observation. It stayed well under the 8 second target in every run.
